@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#185FA5">
+<title>RunIQ</title>
+<script>
+(function(){
+  var m={name:"RunIQ - AI Running Coach",short_name:"RunIQ",display:"standalone",background_color:"#185FA5",theme_color:"#185FA5",orientation:"portrait",start_url:"./",icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%23185FA5'/%3E%3Ccircle cx='122' cy='44' r='18' fill='white'/%3E%3Cpath d='M58 162h22l14-40 26 26v40h22v-54l-28-24 8-32 22 24h26v-22h-36l-24-26-16 56-20-22z' fill='white'/%3E%3C/svg%3E",sizes:"192x192",type:"image/svg+xml"}]};
+  var b=new Blob([JSON.stringify(m)],{type:"application/json"});
+  var l=document.createElement("link");l.rel="manifest";l.href=URL.createObjectURL(b);
+  document.head.appendChild(l);
+})();
+</script>
+<style>
+:root{
+  --blue:#185FA5;--blue-dk:#0C447C;--blue-lt:#E6F1FB;
+  --green:#3B6D11;--green-lt:#EAF3DE;
+  --amber:#BA7517;--amber-lt:#FAEEDA;
+  --red:#993C1D;--red-lt:#FAEBE6;
+  --purple:#5B2D8E;--purple-lt:#F0E8FA;
+  --text:#1a1a1a;--text2:#666;--text3:#999;
+  --border:#e0e0e0;--bg:#fff;--bg2:#f5f5f5;
+  --r:12px;--rsm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#ddd}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px;color:var(--text)}
+.app{max-width:480px;margin:0 auto;background:var(--bg);min-height:100vh}
+.screen{display:none;flex-direction:column;min-height:100vh}
+.screen.active{display:flex}
+
+/* ONBOARDING */
+.ob-wrap{flex:1;padding:28px 20px 20px;display:flex;flex-direction:column;overflow-y:auto}
+.ob-progress{display:flex;gap:5px;margin-bottom:28px;flex-shrink:0}
+.ob-bar{flex:1;height:4px;border-radius:99px;background:var(--border);transition:background 0.3s}
+.ob-bar.done{background:var(--blue)}
+.ob-bar.active{background:#6AAEE0}
+.ob-icon{font-size:48px;margin-bottom:16px;line-height:1}
+.ob-title{font-size:24px;font-weight:700;color:var(--text);margin-bottom:8px;line-height:1.2}
+.ob-sub{font-size:15px;color:var(--text2);margin-bottom:24px;line-height:1.6}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px}
+.field input,.field select{width:100%;padding:14px 16px;font-size:16px;border:1.5px solid var(--border);border-radius:var(--r);background:var(--bg);color:var(--text);-webkit-appearance:none;appearance:none}
+.field input:focus,.field select:focus{outline:none;border-color:var(--blue)}
+.sel-wrap{position:relative}
+.sel-wrap::after{content:"v";position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text2);pointer-events:none;font-size:12px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pill-group{display:flex;flex-wrap:wrap;gap:10px}
+.pill{padding:10px 18px;border-radius:99px;border:1.5px solid var(--border);font-size:15px;cursor:pointer;background:var(--bg);color:var(--text);transition:all 0.15s;white-space:nowrap;font-family:inherit}
+.pill.sel{background:var(--blue);color:#fff;border-color:var(--blue)}
+.gender-group{display:flex;gap:12px}
+.gender-pill{flex:1;padding:14px;border-radius:var(--r);border:1.5px solid var(--border);text-align:center;cursor:pointer;font-size:15px;font-weight:500;color:var(--text);transition:all 0.15s}
+.gender-pill.sel{border-color:var(--blue);background:var(--blue-lt);color:var(--blue)}
+.dist-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.dist-card{border:1.5px solid var(--border);border-radius:var(--r);padding:14px 8px;text-align:center;cursor:pointer;transition:all 0.15s;background:var(--bg)}
+.dist-card.sel{border-color:var(--blue);background:var(--blue-lt)}
+.dist-card-dist{font-size:18px;font-weight:700;color:var(--text)}
+.dist-card-lbl{font-size:11px;color:var(--text2);margin-top:3px;font-weight:500}
+.dist-card.sel .dist-card-dist,.dist-card.sel .dist-card-lbl{color:var(--blue)}
+.ob-nav{display:flex;gap:12px;padding:16px 20px;border-top:1px solid var(--border);background:var(--bg);flex-shrink:0}
+.btn{padding:16px 24px;border-radius:var(--r);border:1.5px solid var(--border);background:transparent;cursor:pointer;font-size:16px;font-weight:500;color:var(--text);font-family:inherit;transition:all 0.15s}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);flex:1}
+.btn-primary:active{background:var(--blue-dk)}
+.btn-back{color:var(--text2);border-color:transparent;padding-left:0}
+
+/* GENERATING SCREEN */
+.gen-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;text-align:center}
+.gen-circle{width:80px;height:80px;border-radius:50%;background:var(--blue-lt);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:36px}
+.gen-title{font-size:22px;font-weight:700;color:var(--text);margin-bottom:10px}
+.gen-sub{font-size:15px;color:var(--text2);line-height:1.6;margin-bottom:32px;min-height:48px}
+.gen-steps{width:100%;text-align:left}
+.gen-step{display:flex;align-items:center;gap:14px;padding:10px 0;font-size:15px;color:var(--text2)}
+.gen-step.done{color:var(--text)}
+.step-dot{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;transition:all 0.3s}
+.step-dot.done{background:var(--green);border-color:var(--green);color:#fff}
+.step-dot.spin{border-color:var(--blue);border-top-color:transparent;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* MAIN APP HEADER */
+.app-header{background:var(--bg);border-bottom:1px solid var(--border);padding:14px 16px 0;position:sticky;top:0;z-index:10}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-box{width:32px;height:32px;background:var(--blue);border-radius:9px;display:flex;align-items:center;justify-content:center}
+.logo-box svg{width:18px;height:18px;fill:#fff}
+.logo-name{font-size:17px;font-weight:700;color:var(--text)}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.race-badge{background:var(--blue-lt);color:var(--blue);border-radius:99px;padding:5px 12px;font-size:13px;font-weight:600}
+.garmin-chip{display:flex;align-items:center;gap:5px;background:var(--green-lt);color:var(--green);border-radius:99px;padding:5px 10px;font-size:12px;font-weight:500}
+.garmin-dot{width:6px;height:6px;border-radius:50%;background:var(--green)}
+.tabs{display:flex}
+.tab{flex:1;padding:12px 4px;font-size:13px;color:var(--text2);text-align:center;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all 0.2s}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
+.main-body{flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch}
+.section{display:none}
+.section.active{display:block}
+
+/* CARDS */
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.card-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:10px}
+.card-row{display:flex;align-items:center;justify-content:space-between}
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+.stat{background:var(--bg2);border-radius:var(--rsm);padding:14px}
+.stat-label{font-size:11px;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.4px;font-weight:500}
+.stat-val{font-size:24px;font-weight:700;color:var(--text);line-height:1}
+.stat-unit{font-size:12px;color:var(--text2)}
+.stat-note{font-size:12px;margin-top:4px}
+.progress-bar{height:6px;background:var(--bg2);border-radius:99px;overflow:hidden;margin:10px 0}
+.progress-fill{height:100%;border-radius:99px;background:var(--blue);transition:width 0.6s}
+
+/* AI MESSAGES */
+.ai-msg{border-radius:var(--r);padding:14px 16px;font-size:14px;line-height:1.7;margin-bottom:12px}
+.ai-insight{background:var(--blue-lt);color:#0C447C;border-left:4px solid var(--blue)}
+.ai-warn{background:var(--amber-lt);color:#633806;border-left:4px solid var(--amber)}
+.ai-good{background:var(--green-lt);color:#27500A;border-left:4px solid var(--green)}
+.ai-label{font-size:11px;font-weight:700;opacity:0.7;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px}
+
+/* PLAN WEEK CARDS */
+.week-card{border:1px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden}
+.week-card-header{display:flex;align-items:center;gap:12px;padding:13px 14px;cursor:pointer;background:var(--bg)}
+.week-card-header.current{background:var(--blue-lt)}
+.week-card-header.done{background:var(--bg2)}
+.wdot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.wdot-done{background:var(--green)}
+.wdot-cur{background:var(--blue)}
+.wdot-fut{background:var(--border)}
+.week-card-title{font-size:14px;font-weight:600;color:var(--text);flex:1}
+.week-card-km{font-size:13px;font-weight:600;color:var(--text2);margin-right:6px}
+.week-card-chevron{font-size:12px;color:var(--text3);transition:transform 0.2s}
+.week-card-chevron.open{transform:rotate(180deg)}
+.week-card-body{display:none;border-top:1px solid var(--border);padding:12px 14px;background:var(--bg)}
+.week-card-body.open{display:block}
+.session-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.session-row:last-child{border-bottom:none}
+.session-day{font-size:12px;font-weight:600;color:var(--text2);width:32px;flex-shrink:0;padding-top:1px}
+.session-info{flex:1}
+.session-type{font-size:13px;font-weight:600;color:var(--text)}
+.session-detail{font-size:12px;color:var(--text2);margin-top:2px;line-height:1.5}
+.session-done-btn{padding:5px 10px;border-radius:99px;border:1px solid var(--border);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--bg);color:var(--text2);white-space:nowrap;flex-shrink:0}
+.session-done-btn.logged{background:var(--green-lt);color:var(--green);border-color:var(--green)}
+
+/* RUN LOG */
+.run-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.run-row:last-child{border-bottom:none}
+.run-ico{width:40px;height:40px;border-radius:var(--rsm);background:var(--blue-lt);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.run-type{font-size:13px;font-weight:600;color:var(--text)}
+.run-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.run-km{font-size:15px;font-weight:700;color:var(--blue)}
+
+/* PROGRESS CHART */
+.chart-wrap{position:relative;height:80px;margin:4px 0 8px}
+.chart-bars{display:flex;align-items:flex-end;gap:4px;height:100%}
+.chart-bar{flex:1;border-radius:3px 3px 0 0;min-width:0;position:relative;transition:height 0.4s}
+.chart-bar-label{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--text3);white-space:nowrap}
+.chart-labels{display:flex;gap:4px;margin-top:20px}
+.chart-label{flex:1;text-align:center;font-size:9px;color:var(--text3)}
+
+/* TREND LINE MINI */
+.trend-line{display:flex;align-items:center;gap:6px;margin-top:4px}
+.trend-arrow{font-size:13px;font-weight:700}
+.trend-text{font-size:12px;color:var(--text2)}
+
+/* CHAT */
+.chat-area{display:flex;flex-direction:column;gap:10px;min-height:100px;margin-bottom:12px}
+.chat-bubble{max-width:88%;padding:12px 14px;border-radius:16px;font-size:14px;line-height:1.6}
+.bubble-ai{align-self:flex-start;background:var(--bg2);color:var(--text);border-bottom-left-radius:4px}
+.bubble-user{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+.chat-row{display:flex;gap:10px;align-items:center}
+.chat-input{flex:1;padding:14px 16px;font-size:15px;border:1.5px solid var(--border);border-radius:99px;background:var(--bg);color:var(--text);font-family:inherit}
+.chat-input:focus{outline:none;border-color:var(--blue)}
+.send-btn{width:48px;height:48px;border-radius:50%;background:var(--blue);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.send-btn:active{background:var(--blue-dk)}
+.send-btn svg{width:18px;height:18px;fill:#fff}
+.quick-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.qchip{padding:8px 14px;border-radius:99px;border:1px solid var(--border);font-size:13px;cursor:pointer;background:var(--bg);color:var(--text2);font-family:inherit}
+
+/* LOG FORM */
+.log-form{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fl{margin-bottom:14px}
+.fl label{display:block;font-size:12px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;font-weight:600}
+.fl input,.fl select{width:100%;padding:12px 14px;font-size:15px;border:1.5px solid var(--border);border-radius:var(--rsm);background:var(--bg);color:var(--text);font-family:inherit;-webkit-appearance:none}
+.fl input:focus,.fl select:focus{outline:none;border-color:var(--blue)}
+.btn-sm{padding:10px 16px;font-size:14px;border-radius:var(--rsm);border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--text);font-family:inherit;font-weight:500}
+.btn-sm:active{background:var(--bg2)}
+.btn-sm-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-sm-primary:active{background:var(--blue-dk)}
+.btn-sm-warn{background:var(--amber-lt);color:var(--amber);border-color:var(--amber)}
+
+/* MISC */
+.section-lbl{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px}
+.empty-msg{font-size:14px;color:var(--text2);text-align:center;padding:24px 0}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:10px 20px;border-radius:99px;font-size:14px;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1}
+.ldots span{display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin:0 2px;animation:ld 1.2s infinite}
+.ldots span:nth-child(2){animation-delay:0.2s}
+.ldots span:nth-child(3){animation-delay:0.4s}
+@keyframes ld{0%,80%,100%{opacity:0.2}40%{opacity:1}}
+.badge{display:inline-block;border-radius:99px;padding:3px 10px;font-size:11px;font-weight:600}
+.badge-green{background:var(--green-lt);color:var(--green)}
+.badge-blue{background:var(--blue-lt);color:var(--blue)}
+.badge-amber{background:var(--amber-lt);color:var(--amber)}
+.badge-gray{background:var(--bg2);color:var(--text2)}
+.adapting-banner{background:var(--purple-lt);color:var(--purple);border-radius:var(--r);padding:12px 14px;font-size:13px;margin-bottom:12px;display:none;align-items:center;gap:10px;line-height:1.5}
+.install-bar{display:none;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--blue);color:#fff;padding:14px 20px;z-index:200;align-items:center;gap:12px;border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.2)}
+.chip{display:inline-block;border-radius:99px;padding:4px 10px;font-size:11px;font-weight:500}
+.chip-gray{background:var(--bg2);color:var(--text2)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ONBOARDING -->
+<div class="screen active" id="screen-onboard">
+  <div class="ob-wrap">
+    <div class="ob-progress">
+      <div class="ob-bar active" id="op0"></div>
+      <div class="ob-bar" id="op1"></div>
+      <div class="ob-bar" id="op2"></div>
+      <div class="ob-bar" id="op3"></div>
+      <div class="ob-bar" id="op4"></div>
+    </div>
+
+    <div id="ob0">
+      <div class="ob-icon">&#128513;</div>
+      <div class="ob-title">Welcome to RunIQ</div>
+      <div class="ob-sub">Your AI running coach. Gemini generates and adapts your plan week by week based on your real progress.</div>
+      <div class="field"><label>Your name</label><input type="text" id="f-name" placeholder="e.g. Oktay" autocomplete="given-name"></div>
+      <div class="field"><label>I am</label>
+        <div class="gender-group">
+          <div class="gender-pill sel" data-val="male">Male</div>
+          <div class="gender-pill" data-val="female">Female</div>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="field"><label>Age</label><input type="number" id="f-age" placeholder="32" value="32" inputmode="numeric"></div>
+        <div class="field"><label>Weight (kg)</label><input type="number" id="f-weight" placeholder="75" value="75" inputmode="numeric"></div>
+      </div>
+    </div>
+
+    <div id="ob1" style="display:none">
+      <div class="ob-title">Choose your race</div>
+      <div class="ob-sub">Gemini will tailor the entire plan and pace zones to this distance.</div>
+      <div class="field"><label>Race distance</label>
+        <div class="dist-grid" id="dist-cards">
+          <div class="dist-card" data-val="5k"><div class="dist-card-dist">5K</div><div class="dist-card-lbl">5 km</div></div>
+          <div class="dist-card" data-val="10k"><div class="dist-card-dist">10K</div><div class="dist-card-lbl">10 km</div></div>
+          <div class="dist-card" data-val="hm"><div class="dist-card-dist">HM</div><div class="dist-card-lbl">21.1 km</div></div>
+          <div class="dist-card sel" data-val="m"><div class="dist-card-dist">M</div><div class="dist-card-lbl">42.2 km</div></div>
+          <div class="dist-card" data-val="custom"><div class="dist-card-dist">Custom</div><div class="dist-card-lbl">Any distance</div></div>
+        </div>
+        <div id="custom-dist-row" style="display:none;margin-top:12px">
+          <div class="field"><label>Custom distance (km)</label><input type="number" id="f-custom-dist" placeholder="e.g. 30" inputmode="decimal" step="0.1"></div>
+          <div class="field"><label>Race name (optional)</label><input type="text" id="f-custom-name" placeholder="e.g. Trail Ultra"></div>
+        </div>
+      </div>
+      <div class="field"><label>Race date</label><input type="date" id="f-date" value="2026-10-11"></div>
+    </div>
+
+    <div id="ob2" style="display:none">
+      <div class="ob-title">Your goal</div>
+      <div class="ob-sub">Gemini uses this to set your training paces and weekly targets.</div>
+      <div class="field"><label id="goal-lbl">Goal finish time</label>
+        <div class="pill-group" id="time-pills"></div>
+      </div>
+      <div class="field" style="margin-top:12px"><label>Current weekly distance (km)</label>
+        <input type="number" id="f-weekly" placeholder="30" value="30" inputmode="numeric">
+      </div>
+      <div class="field"><label>Recent longest run (km)</label>
+        <input type="number" id="f-longest" placeholder="16" value="16" inputmode="numeric">
+      </div>
+      <div class="field"><label>Current fitness level</label>
+        <div class="sel-wrap"><select id="f-fitness">
+          <option value="beginner">Beginner (less than 6 months)</option>
+          <option value="intermediate">Intermediate (6 months to 2 years)</option>
+          <option value="experienced">Experienced (2 years or more)</option>
+        </select></div>
+      </div>
+    </div>
+
+    <div id="ob3" style="display:none">
+      <div class="ob-title">Your schedule</div>
+      <div class="ob-sub">Gemini will build sessions around the days you choose.</div>
+      <div class="field"><label>Runs per week</label>
+        <div class="pill-group" id="runs-pills">
+          <div class="pill" data-val="3">3 days</div>
+          <div class="pill sel" data-val="4">4 days</div>
+          <div class="pill" data-val="5">5 days</div>
+        </div>
+      </div>
+      <div class="field" style="margin-top:20px"><label>Preferred long run day</label>
+        <div class="pill-group" id="longday-pills">
+          <div class="pill" data-val="sat">Saturday</div>
+          <div class="pill sel" data-val="sun">Sunday</div>
+        </div>
+      </div>
+      <div class="field" style="margin-top:20px"><label>Any injuries or limitations?</label>
+        <div class="sel-wrap"><select id="f-injury">
+          <option value="none">None</option>
+          <option value="knee">Knee issues</option>
+          <option value="shin">Shin splints history</option>
+          <option value="plantar">Plantar fasciitis</option>
+          <option value="back">Lower back issues</option>
+        </select></div>
+      </div>
+    </div>
+
+    <div id="ob4" style="display:none">
+      <div class="ob-title">Connect Gemini AI</div>
+      <div class="ob-sub">Gemini generates your full plan and adapts it after every run. Your key is stored only on this device.</div>
+      <div class="field">
+        <label>Google Gemini API key</label>
+        <input type="password" id="f-apikey" placeholder="AIza..." autocomplete="off">
+        <div style="font-size:13px;color:var(--text2);margin-top:8px;line-height:1.6;background:var(--bg2);padding:12px;border-radius:var(--rsm)">
+          1. Go to <strong>aistudio.google.com</strong><br>
+          2. Click "Get API key" then "Create API key"<br>
+          3. Copy and paste it above (starts with AIza...)
+        </div>
+      </div>
+      <div class="field"><label>Garmin watch</label>
+        <div class="sel-wrap"><select id="f-garmin">
+          <option value="forerunner265">Forerunner 265</option>
+          <option value="forerunner955">Forerunner 955</option>
+          <option value="fenix7">Fenix 7</option>
+          <option value="epix">Epix</option>
+          <option value="vivoactive5">Vivoactive 5</option>
+          <option value="other">Other Garmin</option>
+        </select></div>
+      </div>
+    </div>
+  </div>
+  <div class="ob-nav">
+    <button class="btn btn-back" id="ob-back" onclick="obBack()" style="display:none">Back</button>
+    <button class="btn btn-primary" id="ob-next" onclick="obNext()">Continue</button>
+  </div>
+</div>
+
+<!-- GENERATING SCREEN -->
+<div class="screen" id="screen-gen">
+  <div class="gen-wrap">
+    <div class="gen-circle">&#129504;</div>
+    <div class="gen-title">Gemini is building your plan</div>
+    <div class="gen-sub" id="gen-sub">Asking Gemini to create your personalised training schedule...</div>
+    <div class="gen-steps">
+      <div class="gen-step" id="gs0"><div class="step-dot spin" id="gd0"></div>Analysing your profile and goals</div>
+      <div class="gen-step" id="gs1"><div class="step-dot" id="gd1"></div>Generating week-by-week sessions</div>
+      <div class="gen-step" id="gs2"><div class="step-dot" id="gd2"></div>Setting pace zones and targets</div>
+      <div class="gen-step" id="gs3"><div class="step-dot" id="gd3"></div>Writing your AI coach intro</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="screen" id="screen-app">
+  <div class="app-header">
+    <div class="hdr-top">
+      <div class="logo">
+        <div class="logo-box">
+          <svg viewBox="0 0 24 24"><circle cx="17" cy="4" r="2.5"/><path d="M8 24h3l2-6 4 4v6h3v-8l-4.5-3.5 1.5-5 3.5 3.5H24v-3h-5l-4-4-2 7-3-3L8 24z" transform="scale(0.85) translate(1,0)"/><path d="M4 13l2-2 2 2-2 2z" fill="rgba(255,255,255,0.5)"/></svg>
+        </div>
+        <span class="logo-name">RunIQ</span>
+      </div>
+      <div class="hdr-right">
+        <span class="race-badge" id="hdr-badge">M</span>
+        <div class="garmin-chip"><div class="garmin-dot"></div>Garmin</div>
+        <button class="btn-sm" onclick="resetApp()" style="font-size:11px;padding:5px 10px;color:var(--text2)">Reset</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('dash')">Dashboard</div>
+      <div class="tab" onclick="switchTab('plan')">Plan</div>
+      <div class="tab" onclick="switchTab('log')">Log</div>
+      <div class="tab" onclick="switchTab('progress')">Progress</div>
+      <div class="tab" onclick="switchTab('coach')">Coach</div>
+    </div>
+  </div>
+
+  <div class="main-body">
+
+    <!-- DASHBOARD -->
+    <div class="section active" id="sec-dash">
+      <div class="adapting-banner" id="adapting-banner">
+        <span style="font-size:20px">&#129504;</span>
+        <span id="adapting-text">Gemini is adapting your plan based on your last run...</span>
+      </div>
+      <div class="card" style="margin-top:4px">
+        <div class="card-row" style="margin-bottom:8px">
+          <div>
+            <div class="card-title" id="d-race-name">Race</div>
+            <div style="font-size:13px;color:var(--text2)" id="d-week-info">Week 1</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:28px;font-weight:700;color:var(--blue)" id="d-days">--</div>
+            <div style="font-size:11px;color:var(--text2)">days left</div>
+          </div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="d-progress" style="width:0%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2)">
+          <span id="d-prog-lbl">Week 1 of 18</span><span id="d-prog-pct">0%</span>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-label">This week</div><div><span class="stat-val" id="d-wkm">0</span><span class="stat-unit"> km</span></div><div class="stat-note" id="d-wkm-note" style="color:var(--text2)">--</div></div>
+        <div class="stat"><div class="stat-label">Avg pace</div><div><span class="stat-val" id="d-pace">--</span><span class="stat-unit">/km</span></div><div class="stat-note" id="d-pace-note" style="color:var(--text2)">--</div></div>
+        <div class="stat"><div class="stat-label">Cadence</div><div><span class="stat-val" id="d-cad">--</span><span class="stat-unit"> spm</span></div><div class="stat-note" id="d-cad-note" style="color:var(--text2)">--</div></div>
+        <div class="stat"><div class="stat-label">Avg HR</div><div><span class="stat-val" id="d-hr">--</span><span class="stat-unit"> bpm</span></div><div class="stat-note" id="d-hr-note" style="color:var(--text2)">--</div></div>
+      </div>
+
+      <div id="d-ai-insight" class="ai-msg ai-insight" style="display:none">
+        <div class="ai-label">Gemini insight</div>
+        <span id="d-ai-text"></span>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Today's session</div>
+        <div id="d-today" style="font-size:14px;color:var(--text2)">Loading...</div>
+      </div>
+    </div>
+
+    <!-- PLAN -->
+    <div class="section" id="sec-plan">
+      <div class="card" style="margin-top:4px">
+        <div class="card-row">
+          <div>
+            <div class="card-title" style="margin-bottom:4px">AI Training Plan</div>
+            <div style="font-size:13px;color:var(--text2)" id="plan-meta">Generated by Gemini</div>
+          </div>
+          <button class="btn-sm btn-sm-warn" onclick="regenPlan()" id="regen-btn">Regenerate</button>
+        </div>
+      </div>
+      <div id="plan-container">
+        <div class="empty-msg">Plan loading...</div>
+      </div>
+    </div>
+
+    <!-- LOG -->
+    <div class="section" id="sec-log">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:4px 0 14px">
+        <div class="section-lbl">Run log</div>
+        <button class="btn-sm btn-sm-primary" onclick="toggleLogForm()">+ Log run</button>
+      </div>
+      <div class="log-form" id="log-form" style="display:none">
+        <div class="card-title" style="margin-bottom:14px">Log a run</div>
+        <div class="form-grid">
+          <div class="fl"><label>Distance (km)</label><input type="number" id="lf-dist" placeholder="12.0" step="0.1" inputmode="decimal"></div>
+          <div class="fl"><label>Duration (h:mm:ss)</label><input type="text" id="lf-dur" placeholder="1:08:00"></div>
+        </div>
+        <div class="form-grid">
+          <div class="fl"><label>Avg HR (bpm)</label><input type="number" id="lf-hr" placeholder="148" inputmode="numeric"></div>
+          <div class="fl"><label>Cadence (spm)</label><input type="number" id="lf-cad" placeholder="165" inputmode="numeric"></div>
+        </div>
+        <div class="fl"><label>Run type</label>
+          <select id="lf-type"><option>Easy run</option><option>Tempo</option><option>Intervals</option><option>Long run</option><option>Race</option></select>
+        </div>
+        <div class="fl"><label>How did it feel?</label>
+          <select id="lf-feel">
+            <option value="1">Very easy - could talk easily</option>
+            <option value="2">Easy - comfortable</option>
+            <option value="3" selected>Moderate - on target</option>
+            <option value="4">Hard - pushed myself</option>
+            <option value="5">Very hard - struggled</option>
+          </select>
+        </div>
+        <div class="fl"><label>Notes (optional)</label>
+          <input type="text" id="lf-notes" placeholder="e.g. felt tired, hot weather...">
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn-sm btn-sm-primary" onclick="submitLog()">Save and get AI feedback</button>
+          <button class="btn-sm" onclick="toggleLogForm()">Cancel</button>
+        </div>
+      </div>
+      <div class="card" id="run-history">
+        <div class="empty-msg">No runs logged yet.</div>
+      </div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="section" id="sec-progress">
+      <div style="margin-top:4px" id="progress-content">
+        <div class="empty-msg">Log some runs to see your progress.</div>
+      </div>
+    </div>
+
+    <!-- COACH -->
+    <div class="section" id="sec-coach">
+      <div id="coach-top" style="margin-top:4px"></div>
+      <div class="card">
+        <div class="card-title" style="margin-bottom:12px">Ask your AI coach</div>
+        <div class="chat-area" id="chat-area">
+          <div class="chat-bubble bubble-ai" id="coach-intro">Hi! I am your Gemini-powered running coach. Ask me anything.</div>
+        </div>
+        <div class="chat-row">
+          <input type="text" class="chat-input" id="chat-input" placeholder="Ask Gemini..." onkeydown="if(event.key==='Enter')sendChat()">
+          <button class="send-btn" onclick="sendChat()">
+            <svg viewBox="0 0 20 20"><path d="M2 10L18 3 11 18 9 11 2 10z"/></svg>
+          </button>
+        </div>
+        <div class="quick-chips" id="quick-chips"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast">Saved</div>
+<div class="install-bar" id="install-bar">
+  <div style="flex:1"><div style="font-size:15px;font-weight:600">Add RunIQ to Home Screen</div><div style="font-size:12px;opacity:0.85;margin-top:2px">Tap Chrome menu (3 dots) then "Add to Home screen"</div></div>
+  <button onclick="document.getElementById('install-bar').style.display='none'" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Got it</button>
+</div>
+
+<script>
+// ===== RACE CONFIGS =====
+var RACES = {
+  '5k':  { label:'5K',   km:5,    weeks:[6,12],  goals:[{v:'sub30',l:'Sub 30:00'},{v:'sub25',l:'Sub 25:00'},{v:'sub22',l:'Sub 22:00'},{v:'sub20',l:'Sub 20:00'},{v:'sub18',l:'Sub 18:00'}] },
+  '10k': { label:'10K',  km:10,   weeks:[8,14],  goals:[{v:'sub60',l:'Sub 60:00'},{v:'sub50',l:'Sub 50:00'},{v:'sub45',l:'Sub 45:00'},{v:'sub40',l:'Sub 40:00'},{v:'sub35',l:'Sub 35:00'}] },
+  'hm':  { label:'Half Marathon', km:21.1, weeks:[10,16], goals:[{v:'sub2h30',l:'Sub 2:30'},{v:'sub2h',l:'Sub 2:00'},{v:'sub1h45',l:'Sub 1:45'},{v:'sub1h30',l:'Sub 1:30'},{v:'sub1h15',l:'Sub 1:15'}] },
+  'm':   { label:'Marathon', km:42.2, weeks:[16,20], goals:[{v:'finish',l:'Just finish'},{v:'sub5',l:'Sub 5:00'},{v:'sub4h30',l:'Sub 4:30'},{v:'sub4',l:'Sub 4:00'},{v:'sub3h30',l:'Sub 3:30'},{v:'sub3',l:'Sub 3:00'}] },
+  'custom': { label:'Custom', km:0, weeks:[8,20], goals:[{v:'finish',l:'Just finish'},{v:'pb',l:'Personal best'},{v:'target',l:'Target pace'}] }
+};
+
+// ===== STATE =====
+var SK = 'runiq_v3';
+var APP = {
+  profile: {}, runs: [], plan: [],
+  currentWeek: 1, totalWeeks: 18,
+  weeklyStats: [], // [{week, targetKm, actualKm, avgPace, avgCad, avgHr, completionPct}]
+  lastAdaptNote: '',
+  obStep: 0
+};
+
+// ===== STORAGE =====
+function save() {
+  try { localStorage.setItem(SK, JSON.stringify(APP)); showToast('Saved'); } catch(e) {}
+}
+function load() {
+  try {
+    var d = JSON.parse(localStorage.getItem(SK));
+    if (d && d.profile && d.profile.name) { Object.assign(APP, d); return true; }
+  } catch(e) {}
+  return false;
+}
+function resetApp() {
+  if (!confirm('Reset all data?')) return;
+  try { localStorage.removeItem(SK); } catch(e) {}
+  location.reload();
+}
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2000);
+}
+
+// ===== GEMINI API =====
+// Use gemini-1.5-flash — higher free-tier RPM quota than 2.0-flash
+var GEMINI_MODEL = 'gemini-1.5-flash';
+
+async function callGemini(system, user, maxTokens, retryCount) {
+  var key = APP.profile.apiKey;
+  if (!key) throw new Error('no_key');
+  retryCount = retryCount || 0;
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent?key=' + key;
+  var resp = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: system }] },
+      contents: [{ parts: [{ text: user }] }],
+      generationConfig: { maxOutputTokens: maxTokens || 800, temperature: 0.7 }
+    })
+  });
+  var data = await resp.json();
+  // Rate limited (429) — extract retry delay and wait automatically
+  if (resp.status === 429 && retryCount < 4) {
+    var errMsg = (data.error && data.error.message) || '';
+    var waitSec = 20; // default
+    var match = errMsg.match(/retry in ([0-9.]+)s/i);
+    if (match) waitSec = Math.ceil(parseFloat(match[1])) + 2;
+    waitSec = Math.min(waitSec, 60); // cap at 60s
+    console.log('Rate limited, retrying in ' + waitSec + 's...');
+    if (typeof updateGenSub === 'function') updateGenSub('Rate limit hit — waiting ' + waitSec + 's then retrying...');
+    await delay(waitSec * 1000);
+    return callGemini(system, user, maxTokens, retryCount + 1);
+  }
+  if (!resp.ok) throw new Error((data.error && data.error.message) ? data.error.message : 'HTTP ' + resp.status);
+  if (!data.candidates || !data.candidates[0]) throw new Error('No response from Gemini');
+  return data.candidates[0].content.parts[0].text;
+}
+
+function updateGenSub(msg) {
+  var el = document.getElementById('gen-sub');
+  if (el) el.textContent = msg;
+}
+
+function geminiSystemPrompt() {
+  var p = APP.profile;
+  return 'You are an expert running coach. The runner is ' + p.name + ', ' + p.gender + ', age ' + p.age +
+    ', weight ' + p.weight + 'kg. Race: ' + p.distLabel + ' (' + p.distKm + 'km) on ' + p.raceDate +
+    ', goal: ' + p.goalLabel + '. Fitness level: ' + p.fitness + '. Injury history: ' + p.injury +
+    '. Runs ' + p.runsPerWeek + ' days/week, long run on ' + p.longRunDay + 's.' +
+    ' Current weekly km: ' + p.weeklyKm + '. Longest recent run: ' + p.longestRun + 'km.' +
+    ' Be concise, specific, and actionable. No markdown formatting, no bullet symbols, plain text only.';
+}
+
+// ===== AI PLAN GENERATION =====
+// Generates plan in 2 chunks to stay within free-tier token limits
+async function generateFullPlan() {
+  var p = APP.profile;
+  var totalWeeks = APP.totalWeeks;
+  var half = Math.ceil(totalWeeks / 2);
+  var sysPrompt = 'You are an expert running coach. Return ONLY valid JSON array, no markdown, no backticks, no explanation.';
+
+  function makePrompt(fromWeek, toWeek, context) {
+    return 'Create weeks ' + fromWeek + ' to ' + toWeek + ' of a ' + totalWeeks +
+      '-week ' + p.distLabel + ' training plan. Runner: ' + p.gender + ', age ' + p.age +
+      ', goal: ' + p.goalLabel + ', current weekly km: ' + p.weeklyKm +
+      ', longest run: ' + p.longestRun + 'km, ' + p.runsPerWeek + ' runs/week, long run on ' + p.longRunDay + 's, injury: ' + p.injury + '.' +
+      (context ? ' Plan so far context: first half peaks at ~' + context + 'km/week.' : '') +
+      ' Phases: weeks 1-' + Math.round(totalWeeks*0.15) + ' base, weeks ' + Math.round(totalWeeks*0.15+1) + '-' + Math.round(totalWeeks*0.55) + ' build, weeks ' + Math.round(totalWeeks*0.55+1) + '-' + Math.round(totalWeeks*0.75) + ' peak, then taper.' +
+      ' Every 4th week is a recovery week (70% volume).' +
+      ' Respond ONLY with a JSON array for weeks ' + fromWeek + ' to ' + toWeek + ':' +
+      ' [{"week":' + fromWeek + ',"phase":"Base building","targetKm":28,"sessions":[{"day":"Mon","type":"Easy run","km":8,"pace":"6:30/km","detail":"Easy conversational pace"},{"day":"Wed","type":"Tempo","km":6,"pace":"5:45/km","detail":"Comfortably hard 20 min"},{"day":"Fri","type":"Easy run","km":6,"pace":"6:30/km","detail":"Recovery run"},{"day":"Sun","type":"Long run","km":14,"pace":"6:45/km","detail":"Easy long run"}],"coachNote":"Build the base."}]';
+  }
+
+  // Chunk 1: first half
+  updateGenSub('Gemini generating weeks 1-' + half + '...');
+  var raw1 = await callGemini(sysPrompt, makePrompt(1, half, null), 2500);
+  var plan1 = parseJsonArray(raw1);
+
+  // Small pause between requests to respect rate limits
+  await delay(3000);
+
+  // Chunk 2: second half
+  var peakKm = plan1.length > 0 ? Math.max.apply(null, plan1.map(function(w){return w.targetKm||0;})) : p.weeklyKm;
+  updateGenSub('Gemini generating weeks ' + (half+1) + '-' + totalWeeks + '...');
+  var raw2 = await callGemini(sysPrompt, makePrompt(half + 1, totalWeeks, peakKm), 2500);
+  var plan2 = parseJsonArray(raw2);
+
+  var combined = plan1.concat(plan2);
+  // Ensure week numbers are sequential
+  combined.forEach(function(w, i) { w.week = i + 1; });
+  if (combined.length === 0) throw new Error('Plan generation returned empty. Try again.');
+  return combined;
+}
+
+function parseJsonArray(raw) {
+  var cleaned = raw.replace(/```json/gi,'').replace(/```/g,'').trim();
+  var start = cleaned.indexOf('[');
+  var end = cleaned.lastIndexOf(']');
+  if (start === -1 || end === -1) throw new Error('Plan JSON not found in Gemini response. Raw: ' + cleaned.substring(0, 200));
+  return JSON.parse(cleaned.substring(start, end + 1));
+}
+
+async function adaptPlan(run) {
+  if (APP.plan.length === 0) return;
+  var p = APP.profile;
+  var paceStr = formatPace(run.paceSec);
+  var recentRuns = APP.runs.slice(-5);
+  var weekKm = APP.runs.slice(-7).reduce(function(s,r){return s+r.dist;},0);
+  var currentPlan = APP.plan.slice(APP.currentWeek - 1, APP.currentWeek + 3);
+
+  var prompt =
+    'A runner just completed a run: ' + run.dist + 'km ' + run.type +
+    ' at ' + paceStr + '/km, HR ' + (run.hr||'n/a') + ' bpm, cadence ' + (run.cadence||'n/a') + ' spm.' +
+    ' Effort rating: ' + run.feel + '/5. Notes: ' + (run.notes||'none') + '.' +
+    ' Week km so far: ' + weekKm.toFixed(1) + ' of ' + ((APP.plan[APP.currentWeek-1]||{}).targetKm||0) + 'km target.' +
+    ' Total runs logged: ' + APP.runs.length + '.' +
+    '\n\nHere are the next 4 weeks of their current plan (JSON):\n' + JSON.stringify(currentPlan) +
+    '\n\nBased on this run, adjust the next 4 weeks if needed (e.g. if they are struggling, reduce volume; if they are exceeding targets, progress faster; fix cadence issues with drills).' +
+    '\n\nRespond with ONLY a JSON object (no markdown, no backticks):' +
+    '\n{"adaptedWeeks":[...same structure as input, weeks ' + APP.currentWeek + ' to ' + Math.min(APP.currentWeek+3, APP.totalWeeks) + '...],"adaptNote":"One sentence explaining what was changed and why.","runFeedback":"2-3 sentences of specific coaching feedback on this run."}';
+
+  var raw = await callGemini('You are an expert running coach. Return ONLY valid JSON.', prompt, 2000);
+  var cleaned = raw.replace(/```json/gi,'').replace(/```/g,'').trim();
+  var start = cleaned.indexOf('{');
+  var end = cleaned.lastIndexOf('}');
+  if (start === -1) throw new Error('Adapt JSON not found');
+  var result = JSON.parse(cleaned.substring(start, end + 1));
+
+  // Splice adapted weeks back into plan
+  if (result.adaptedWeeks && result.adaptedWeeks.length > 0) {
+    result.adaptedWeeks.forEach(function(aw) {
+      var idx = APP.plan.findIndex(function(w){ return w.week === aw.week; });
+      if (idx !== -1) APP.plan[idx] = aw;
+    });
+  }
+  return result;
+}
+
+// ===== ONBOARDING =====
+var OB_TOTAL = 5;
+
+document.addEventListener('click', function(e) {
+  var t = e.target;
+  if (t.classList.contains('gender-pill')) {
+    document.querySelectorAll('.gender-pill').forEach(function(p){p.classList.remove('sel');});
+    t.classList.add('sel');
+  }
+  if (t.classList.contains('pill')) {
+    var g = t.closest('.pill-group');
+    if (g) { g.querySelectorAll('.pill').forEach(function(p){p.classList.remove('sel');}); t.classList.add('sel'); }
+  }
+  if (t.classList.contains('dist-card') || t.closest('.dist-card')) {
+    var card = t.classList.contains('dist-card') ? t : t.closest('.dist-card');
+    document.querySelectorAll('.dist-card').forEach(function(c){c.classList.remove('sel');});
+    card.classList.add('sel');
+    document.getElementById('custom-dist-row').style.display = card.dataset.val === 'custom' ? 'block' : 'none';
+    buildGoalPills(card.dataset.val);
+  }
+});
+
+function buildGoalPills(distVal) {
+  var config = RACES[distVal] || RACES['m'];
+  document.getElementById('goal-lbl').textContent = config.label + ' goal time';
+  var c = document.getElementById('time-pills');
+  c.innerHTML = '';
+  var mid = Math.floor(config.goals.length / 2);
+  config.goals.forEach(function(g, i) {
+    var d = document.createElement('div');
+    d.className = 'pill' + (i === mid ? ' sel' : '');
+    d.dataset.val = g.v;
+    d.textContent = g.l;
+    c.appendChild(d);
+  });
+}
+
+function updateObProgress() {
+  for (var i = 0; i < OB_TOTAL; i++) {
+    var el = document.getElementById('op' + i);
+    if (!el) continue;
+    if (i < APP.obStep) el.className = 'ob-bar done';
+    else if (i === APP.obStep) el.className = 'ob-bar active';
+    else el.className = 'ob-bar';
+  }
+}
+
+function getPill(gid) { var s = document.querySelector('#'+gid+' .pill.sel'); return s ? s.dataset.val : null; }
+function getGender() { var s = document.querySelector('.gender-pill.sel'); return s ? s.dataset.val : 'male'; }
+function getDistCard() { var s = document.querySelector('.dist-card.sel'); return s ? s.dataset.val : 'm'; }
+
+function obNext() {
+  if (APP.obStep < OB_TOTAL - 1) {
+    document.getElementById('ob'+APP.obStep).style.display = 'none';
+    APP.obStep++;
+    document.getElementById('ob'+APP.obStep).style.display = 'block';
+    document.getElementById('ob-back').style.display = 'inline-block';
+    updateObProgress();
+    if (APP.obStep === 2) buildGoalPills(getDistCard());
+    if (APP.obStep === OB_TOTAL - 1) document.getElementById('ob-next').textContent = 'Generate my plan with Gemini';
+  } else {
+    var key = document.getElementById('f-apikey').value.trim();
+    if (!key) { alert('Please enter your Gemini API key to continue. Get it free at aistudio.google.com'); return; }
+    collectProfile();
+    startGeneration();
+  }
+}
+function obBack() {
+  if (APP.obStep > 0) {
+    document.getElementById('ob'+APP.obStep).style.display = 'none';
+    APP.obStep--;
+    document.getElementById('ob'+APP.obStep).style.display = 'block';
+    updateObProgress();
+    if (APP.obStep === 0) document.getElementById('ob-back').style.display = 'none';
+    document.getElementById('ob-next').textContent = 'Continue';
+  }
+}
+
+function collectProfile() {
+  var distVal = getDistCard();
+  var config = RACES[distVal] || RACES['m'];
+  var goalVal = getPill('time-pills') || config.goals[Math.floor(config.goals.length/2)].v;
+  var goalObj = config.goals.find(function(g){return g.v===goalVal;}) || config.goals[0];
+  var customKm = parseFloat(document.getElementById('f-custom-dist').value) || 0;
+  var customName = document.getElementById('f-custom-name').value.trim();
+  APP.profile = {
+    name: document.getElementById('f-name').value.trim() || 'Runner',
+    gender: getGender(),
+    age: parseInt(document.getElementById('f-age').value) || 32,
+    weight: parseFloat(document.getElementById('f-weight').value) || 75,
+    distVal: distVal,
+    distKm: distVal === 'custom' ? customKm : config.km,
+    distLabel: distVal === 'custom' ? (customName || 'Custom ' + customKm + 'km') : config.label,
+    raceDate: document.getElementById('f-date').value,
+    goalTime: goalVal,
+    goalLabel: goalObj.l,
+    weeklyKm: parseFloat(document.getElementById('f-weekly').value) || 30,
+    longestRun: parseFloat(document.getElementById('f-longest').value) || 16,
+    fitness: document.getElementById('f-fitness').value,
+    runsPerWeek: parseInt(getPill('runs-pills')) || 4,
+    longRunDay: getPill('longday-pills') || 'sun',
+    injury: document.getElementById('f-injury').value,
+    garmin: document.getElementById('f-garmin').value,
+    apiKey: document.getElementById('f-apikey').value.trim(),
+    maxHR: APP.profile.gender === 'female' ? Math.round(209 - 0.9 * (parseInt(document.getElementById('f-age').value)||32)) : Math.round(208 - 0.7 * (parseInt(document.getElementById('f-age').value)||32))
+  };
+  // Calculate weeks
+  var rDate = new Date(APP.profile.raceDate);
+  var weeks = Math.max(1, Math.round((rDate - new Date()) / (7*24*3600*1000)));
+  var cfg = RACES[distVal] || RACES['m'];
+  APP.totalWeeks = Math.min(cfg.weeks[1], Math.max(cfg.weeks[0], weeks));
+  APP.currentWeek = 1;
+  APP.weeklyStats = [];
+}
+
+// ===== GENERATION =====
+async function startGeneration() {
+  showScreen('screen-gen');
+  var p = APP.profile;
+  document.getElementById('gen-sub').textContent = 'Asking Gemini to create ' + p.name + "'s " + p.distLabel + ' plan...';
+
+  markStep(0, 'spin');
+  try {
+    // Step 1: analyse profile
+    await delay(400);
+    markStep(0, 'done'); markStep(1, 'spin');
+    updateGenSub('Gemini is writing your ' + APP.totalWeeks + '-week schedule (this takes ~30s)...');
+
+    var plan = await generateFullPlan();
+    APP.plan = plan;
+
+    markStep(1, 'done'); markStep(2, 'spin');
+    updateGenSub('Plan ready! Setting pace zones...');
+    await delay(2000); // pause before next API call to avoid rate limit
+
+    markStep(2, 'done'); markStep(3, 'spin');
+    updateGenSub('Writing your personalised coach intro...');
+
+    // Step 4: coach intro — with retry built in
+    var intro = await callGemini(
+      geminiSystemPrompt(),
+      'Write a short 2-3 sentence motivational welcome message for ' + p.name + ' who is starting their ' + p.distLabel + ' training plan with a goal of ' + p.goalLabel + '. Be personal and encouraging.',
+      150
+    );
+    APP.lastAdaptNote = intro;
+
+    markStep(3, 'done');
+    await delay(400);
+
+    save();
+    launchApp();
+  } catch(e) {
+    document.getElementById('gen-sub').textContent = 'Error: ' + e.message + '. Check your API key and internet connection.';
+    var btn = document.createElement('button');
+    btn.className = 'btn btn-primary';
+    btn.textContent = 'Try again';
+    btn.style.marginTop = '20px';
+    btn.onclick = function(){ showScreen('screen-onboard'); APP.obStep = OB_TOTAL-1; document.getElementById('ob'+(OB_TOTAL-1)).style.display='block'; };
+    document.querySelector('.gen-wrap').appendChild(btn);
+  }
+}
+
+function markStep(i, state) {
+  var dot = document.getElementById('gd'+i);
+  var row = document.getElementById('gs'+i);
+  dot.className = 'step-dot' + (state==='done'?' done':state==='spin'?' spin':'');
+  if (state==='done') { dot.textContent='OK'; row.classList.add('done'); }
+}
+function delay(ms) { return new Promise(function(r){setTimeout(r,ms);}); }
+
+async function regenPlan() {
+  if (!confirm('Ask Gemini to regenerate your full plan? This will replace the current plan but keep your run history.')) return;
+  document.getElementById('regen-btn').textContent = 'Regenerating...';
+  document.getElementById('regen-btn').disabled = true;
+  try {
+    var plan = await generateFullPlan();
+    APP.plan = plan;
+    save();
+    renderPlan();
+    showToast('Plan regenerated by Gemini');
+  } catch(e) {
+    alert('Gemini error: ' + e.message);
+  }
+  document.getElementById('regen-btn').textContent = 'Regenerate';
+  document.getElementById('regen-btn').disabled = false;
+}
+
+// ===== LAUNCH APP =====
+function launchApp() {
+  var p = APP.profile;
+  document.getElementById('hdr-badge').textContent = p.distLabel || 'M';
+  document.getElementById('coach-intro').textContent = APP.lastAdaptNote || ('Hi ' + p.name + '! I am your Gemini-powered running coach. Ask me anything.');
+  populateDashboard();
+  renderPlan();
+  renderHistory();
+  renderProgress();
+  populateQuickChips();
+  showScreen('screen-app');
+  setTimeout(function(){ document.getElementById('install-bar').style.display='flex'; }, 4000);
+}
+
+// ===== DASHBOARD =====
+function populateDashboard() {
+  var p = APP.profile;
+  var mDate = new Date(p.raceDate);
+  var daysLeft = Math.max(0, Math.round((mDate - new Date()) / (24*3600*1000)));
+  var pct = Math.round(((APP.currentWeek-1)/APP.totalWeeks)*100);
+  var dateStr = new Date(p.raceDate).toLocaleDateString('en',{day:'numeric',month:'short',year:'numeric'});
+
+  document.getElementById('d-race-name').textContent = p.distLabel + ' - ' + dateStr;
+  document.getElementById('d-days').textContent = daysLeft;
+  document.getElementById('d-week-info').textContent = 'Week ' + APP.currentWeek + ' of ' + APP.totalWeeks + ' - ' + pct + '% complete';
+  document.getElementById('d-progress').style.width = pct + '%';
+  document.getElementById('d-prog-lbl').textContent = 'Week ' + APP.currentWeek + ' of ' + APP.totalWeeks;
+  document.getElementById('d-prog-pct').textContent = pct + '%';
+  updateStats();
+  renderTodayCard();
+}
+
+function updateStats() {
+  var recent = APP.runs.slice(-7);
+  var targetKm = (APP.plan[APP.currentWeek-1]||{}).targetKm || 0;
+  if (!recent.length) {
+    document.getElementById('d-wkm').textContent = '0';
+    document.getElementById('d-wkm-note').textContent = 'Target: ' + targetKm + ' km';
+    ['d-pace','d-cad','d-hr'].forEach(function(id){document.getElementById(id).textContent='--';});
+    return;
+  }
+  var totalKm = recent.reduce(function(s,r){return s+r.dist;},0);
+  var avgPace = recent.reduce(function(s,r){return s+r.paceSec;},0)/recent.length;
+  var cadRuns = recent.filter(function(r){return r.cadence>0;});
+  var hrRuns = recent.filter(function(r){return r.hr>0;});
+  var avgCad = cadRuns.length ? Math.round(cadRuns.reduce(function(s,r){return s+r.cadence;},0)/cadRuns.length) : 0;
+  var avgHr = hrRuns.length ? Math.round(hrRuns.reduce(function(s,r){return s+r.hr;},0)/hrRuns.length) : 0;
+
+  document.getElementById('d-wkm').textContent = totalKm.toFixed(1);
+  document.getElementById('d-wkm-note').textContent = 'Target: ' + targetKm + ' km';
+  document.getElementById('d-wkm-note').style.color = totalKm >= targetKm ? 'var(--green)' : 'var(--amber)';
+  document.getElementById('d-pace').textContent = formatPace(avgPace);
+  document.getElementById('d-cad').textContent = avgCad || '--';
+  if (avgCad) {
+    document.getElementById('d-cad-note').textContent = avgCad < 170 ? 'Target: 170+' : 'Good!';
+    document.getElementById('d-cad-note').style.color = avgCad < 170 ? 'var(--amber)' : 'var(--green)';
+  }
+  document.getElementById('d-hr').textContent = avgHr || '--';
+  if (avgHr && APP.profile.maxHR) {
+    var pct = avgHr / APP.profile.maxHR;
+    var zone = pct < 0.6 ? 'Zone 1' : pct < 0.7 ? 'Zone 2' : pct < 0.8 ? 'Zone 3' : pct < 0.9 ? 'Zone 4' : 'Zone 5';
+    document.getElementById('d-hr-note').textContent = zone;
+  }
+}
+
+function renderTodayCard() {
+  var plan = APP.plan[APP.currentWeek-1];
+  var el = document.getElementById('d-today');
+  if (!plan || !plan.sessions) {
+    el.innerHTML = '<div style="color:var(--text2);font-size:14px">Rest day - recovery is training.</div>';
+    return;
+  }
+  var days = ['sun','mon','tue','wed','thu','fri','sat'];
+  var todayKey = days[new Date().getDay()].toLowerCase();
+  var sess = plan.sessions.find(function(s){ return s.day.toLowerCase().startsWith(todayKey.substring(0,3)); });
+  if (sess) {
+    el.innerHTML =
+      '<div style="display:flex;align-items:flex-start;gap:14px">' +
+      '<div style="background:var(--green-lt);border-radius:var(--rsm);padding:12px 14px;text-align:center;flex-shrink:0">' +
+        '<div style="font-size:20px;font-weight:700;color:var(--green)">' + sess.km + '</div>' +
+        '<div style="font-size:10px;color:var(--green);font-weight:600">km</div>' +
+      '</div>' +
+      '<div style="flex:1">' +
+        '<div style="font-size:15px;font-weight:600">' + sess.type + '</div>' +
+        '<div style="font-size:13px;color:var(--blue);margin-top:3px;font-weight:500">' + (sess.pace||'') + '</div>' +
+        '<div style="font-size:13px;color:var(--text2);margin-top:4px;line-height:1.5">' + (sess.detail||'') + '</div>' +
+        '<div style="display:flex;gap:10px;margin-top:12px">' +
+          '<button class="btn-sm btn-sm-primary" onclick="toggleLogForm();switchTab(\'log\')">Log this run</button>' +
+          '<button class="btn-sm" onclick="setQ(\'Give me tips for my ' + sess.type + ' today, ' + sess.km + 'km at ' + (sess.pace||'easy pace') + '\');switchTab(\'coach\')">Get tips</button>' +
+        '</div>' +
+      '</div>' +
+      '</div>';
+  } else {
+    el.innerHTML = '<div style="font-size:14px;color:var(--text2)">Rest day - enjoy the recovery!</div>';
+  }
+}
+
+// ===== PLAN RENDERING =====
+function renderPlan() {
+  if (!APP.plan.length) { document.getElementById('plan-container').innerHTML = '<div class="empty-msg">Plan not yet generated.</div>'; return; }
+  var p = APP.profile;
+  document.getElementById('plan-meta').textContent =
+    APP.totalWeeks + '-week AI plan - ' + p.goalLabel + ' - ' + p.runsPerWeek + ' runs/week';
+
+  var html = '';
+  APP.plan.forEach(function(week) {
+    var isDone = week.week < APP.currentWeek;
+    var isCurrent = week.week === APP.currentWeek;
+    var dotCls = isDone ? 'wdot wdot-done' : isCurrent ? 'wdot wdot-cur' : 'wdot wdot-fut';
+    var hdrCls = 'week-card-header' + (isCurrent ? ' current' : isDone ? ' done' : '');
+    var completedKm = getWeekActualKm(week.week);
+    var completionBadge = '';
+    if (isDone && completedKm > 0) {
+      var pct = Math.round(completedKm / (week.targetKm||1) * 100);
+      completionBadge = ' <span class="badge ' + (pct>=90?'badge-green':pct>=70?'badge-amber':'badge-gray') + '">' + pct + '%</span>';
+    }
+    html += '<div class="week-card" id="wcard-'+week.week+'">';
+    html += '<div class="' + hdrCls + '" onclick="toggleWeekCard('+week.week+')">';
+    html += '<div class="' + dotCls + '"></div>';
+    html += '<div style="flex:1"><div class="week-card-title">Wk ' + week.week + ': ' + (week.phase||'Training') + (isCurrent?' (current)':'') + completionBadge + '</div>';
+    if (week.coachNote) html += '<div style="font-size:12px;color:var(--text2);margin-top:2px">' + week.coachNote + '</div>';
+    html += '</div>';
+    html += '<span class="week-card-km">' + (week.targetKm||'?') + 'km</span>';
+    html += '<span class="week-card-chevron" id="chev-'+week.week+'">' + (isCurrent?'v':'v') + '</span>';
+    html += '</div>';
+    // Body (open by default for current week)
+    html += '<div class="week-card-body' + (isCurrent?' open':'') + '" id="wbody-'+week.week+'">';
+    if (week.sessions && week.sessions.length) {
+      week.sessions.forEach(function(s) {
+        html += '<div class="session-row">';
+        html += '<div class="session-day">' + (s.day||'').substring(0,3) + '</div>';
+        html += '<div class="session-info"><div class="session-type">' + s.type + ' - ' + s.km + 'km</div>';
+        html += '<div class="session-detail">' + (s.pace?s.pace+' &nbsp;':'') + (s.detail||'') + '</div></div>';
+        html += '</div>';
+      });
+    } else {
+      html += '<div style="font-size:13px;color:var(--text2);padding:4px 0">No sessions generated for this week.</div>';
+    }
+    html += '</div></div>';
+  });
+  document.getElementById('plan-container').innerHTML = html;
+}
+
+function toggleWeekCard(week) {
+  var body = document.getElementById('wbody-'+week);
+  var chev = document.getElementById('chev-'+week);
+  if (body.classList.contains('open')) { body.classList.remove('open'); }
+  else { body.classList.add('open'); }
+}
+
+function getWeekActualKm(weekNum) {
+  var stat = APP.weeklyStats.find(function(s){return s.week===weekNum;});
+  return stat ? stat.actualKm : 0;
+}
+
+// ===== LOG =====
+function toggleLogForm() {
+  var f = document.getElementById('log-form');
+  f.style.display = f.style.display==='none' ? 'block' : 'none';
+}
+
+async function submitLog() {
+  var dist = parseFloat(document.getElementById('lf-dist').value)||0;
+  if (!dist) { alert('Please enter a distance.'); return; }
+  var dur = document.getElementById('lf-dur').value||'0:00:00';
+  var hr = parseInt(document.getElementById('lf-hr').value)||0;
+  var cad = parseInt(document.getElementById('lf-cad').value)||0;
+  var type = document.getElementById('lf-type').value;
+  var feel = parseInt(document.getElementById('lf-feel').value)||3;
+  var notes = document.getElementById('lf-notes').value.trim();
+
+  var parts = dur.split(':').map(Number);
+  var totalSec = parts.length===3 ? parts[0]*3600+parts[1]*60+(parts[2]||0) : parts.length===2 ? parts[0]*60+parts[1] : 0;
+  var paceSec = dist>0 && totalSec>0 ? totalSec/dist : 0;
+
+  var run = {
+    dist:dist, dur:dur, hr:hr, cadence:cad, paceSec:paceSec,
+    type:type, feel:feel, notes:notes,
+    date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'}),
+    week:APP.currentWeek, ts:Date.now()
+  };
+  APP.runs.push(run);
+
+  // Update weekly stats
+  updateWeeklyStat(run);
+
+  // Advance week if we've logged enough runs
+  checkWeekAdvance();
+
+  updateStats();
+  renderHistory();
+  toggleLogForm();
+  ['lf-dist','lf-dur','lf-hr','lf-cad','lf-notes'].forEach(function(id){document.getElementById(id).value='';});
+  save();
+
+  // Show adapting banner and call Gemini
+  var banner = document.getElementById('adapting-banner');
+  banner.style.display = 'flex';
+  document.getElementById('adapting-text').textContent = 'Gemini is adapting your plan based on this run...';
+  switchTab('dash');
+
+  try {
+    var result = await adaptPlan(run);
+    if (result) {
+      // Show insight
+      var box = document.getElementById('d-ai-insight');
+      box.style.display = 'block';
+      document.getElementById('d-ai-text').textContent = result.runFeedback || '';
+      APP.lastAdaptNote = result.adaptNote || '';
+      // Add to coach tab
+      if (result.runFeedback) {
+        var msg = document.createElement('div');
+        msg.className = 'ai-msg ai-good';
+        msg.innerHTML = '<div class="ai-label">Run feedback</div>' + result.runFeedback;
+        if (result.adaptNote) msg.innerHTML += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,0,0,0.08);font-size:12px;color:var(--green)">Plan updated: ' + result.adaptNote + '</div>';
+        document.getElementById('coach-top').appendChild(msg);
+      }
+      renderPlan();
+      renderProgress();
+      save();
+    }
+  } catch(e) {
+    document.getElementById('d-ai-insight').style.display = 'block';
+    document.getElementById('d-ai-text').textContent = 'Run saved! Gemini error: ' + e.message;
+  }
+  banner.style.display = 'none';
+}
+
+function updateWeeklyStat(run) {
+  var existing = APP.weeklyStats.find(function(s){return s.week===APP.currentWeek;});
+  if (existing) {
+    existing.actualKm = parseFloat((existing.actualKm + run.dist).toFixed(1));
+    existing.paces.push(run.paceSec);
+    if (run.cadence) existing.cadences.push(run.cadence);
+    if (run.hr) existing.hrs.push(run.hr);
+    existing.avgPace = existing.paces.reduce(function(a,b){return a+b;},0)/existing.paces.length;
+    existing.avgCad = existing.cadences.length ? Math.round(existing.cadences.reduce(function(a,b){return a+b;},0)/existing.cadences.length) : 0;
+    existing.avgHr = existing.hrs.length ? Math.round(existing.hrs.reduce(function(a,b){return a+b;},0)/existing.hrs.length) : 0;
+  } else {
+    var target = (APP.plan[APP.currentWeek-1]||{}).targetKm || 0;
+    APP.weeklyStats.push({
+      week: APP.currentWeek, targetKm: target, actualKm: parseFloat(run.dist.toFixed(1)),
+      paces: run.paceSec ? [run.paceSec] : [],
+      cadences: run.cadence ? [run.cadence] : [],
+      hrs: run.hr ? [run.hr] : [],
+      avgPace: run.paceSec, avgCad: run.cadence||0, avgHr: run.hr||0
+    });
+  }
+}
+
+function checkWeekAdvance() {
+  // Check if current week's target is roughly met to advance
+  var stat = APP.weeklyStats.find(function(s){return s.week===APP.currentWeek;});
+  if (stat && stat.targetKm > 0 && stat.actualKm >= stat.targetKm * 0.75 && APP.currentWeek < APP.totalWeeks) {
+    // Only advance if we have enough runs this week
+    var weekRuns = APP.runs.filter(function(r){return r.week===APP.currentWeek;});
+    if (weekRuns.length >= Math.floor(APP.profile.runsPerWeek * 0.75)) {
+      APP.currentWeek = Math.min(APP.currentWeek + 1, APP.totalWeeks);
+      populateDashboard();
+    }
+  }
+}
+
+function renderHistory() {
+  var el = document.getElementById('run-history');
+  if (!APP.runs.length) { el.innerHTML='<div class="empty-msg">No runs logged yet.</div>'; return; }
+  var cols = {'Easy run':'#185FA5','Long run':'#3B6D11','Tempo':'#BA7517','Intervals':'#BA7517','Race':'#993C1D'};
+  el.innerHTML = APP.runs.slice().reverse().map(function(r) {
+    var pace = r.paceSec ? formatPace(r.paceSec) + ' /km' : '';
+    var col = cols[r.type] || '#185FA5';
+    var feelEmoji = ['','Very easy','Easy','Moderate','Hard','Max effort'][r.feel] || '';
+    return '<div class="run-row">' +
+      '<div class="run-ico"><svg width="16" height="16" viewBox="0 0 16 16" fill="'+col+'"><path d="M10 3a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM5.5 8L4 13h1.5l1-3 2 2v4h1.5v-5L8 9.5l.5-2.5L11 9h2V7.5L9.5 6l-1-2.5L7 5l-1.5 3z"/></svg></div>' +
+      '<div style="flex:1"><div class="run-type">Wk'+r.week+' - '+r.type+'</div>' +
+      '<div class="run-meta">'+r.date+(pace?' - '+pace:'')+(r.hr?' - HR '+r.hr:'')+(r.cadence?' - '+r.cadence+'spm':'')+(feelEmoji?' - '+feelEmoji:'')+'</div>' +
+      (r.notes?'<div class="run-meta" style="font-style:italic">'+r.notes+'</div>':'') +
+      '</div><span class="run-km">'+r.dist.toFixed(1)+'</span></div>';
+  }).join('');
+}
+
+// ===== PROGRESS =====
+function renderProgress() {
+  var el = document.getElementById('progress-content');
+  if (!APP.runs.length) { el.innerHTML='<div class="empty-msg">Log some runs to see your progress charts.</div>'; return; }
+
+  var stats = APP.weeklyStats;
+  var html = '';
+
+  // Weekly volume chart
+  html += '<div class="card"><div class="card-title">Weekly volume (km)</div>';
+  if (stats.length > 0) {
+    var maxKm = Math.max.apply(null, stats.map(function(s){return Math.max(s.targetKm,s.actualKm,1);}));
+    html += '<div style="display:flex;gap:4px;height:100px;align-items:flex-end;margin-bottom:4px">';
+    stats.forEach(function(s) {
+      var targetH = Math.round(s.targetKm/maxKm*100);
+      var actualH = Math.round(s.actualKm/maxKm*100);
+      var color = s.actualKm >= s.targetKm*0.9 ? 'var(--green)' : s.actualKm >= s.targetKm*0.7 ? 'var(--amber)' : 'var(--red)';
+      html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;justify-content:flex-end">';
+      html += '<div style="width:100%;background:var(--bg2);border-radius:3px 3px 0 0;height:'+targetH+'px;position:relative">';
+      html += '<div style="position:absolute;bottom:0;left:0;right:0;background:'+color+';border-radius:3px 3px 0 0;height:'+actualH+'px"></div>';
+      html += '</div>';
+      html += '<div style="font-size:9px;color:var(--text3);margin-top:3px">W'+s.week+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '<div style="display:flex;gap:14px;font-size:12px;color:var(--text2);margin-top:8px">';
+    html += '<span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--bg2);display:inline-block"></span>Target</span>';
+    html += '<span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--green);display:inline-block"></span>Completed</span>';
+    html += '</div>';
+  }
+  html += '</div>';
+
+  // Pace trend
+  var paceStats = stats.filter(function(s){return s.avgPace > 0;});
+  if (paceStats.length > 1) {
+    html += '<div class="card"><div class="card-title">Avg pace trend</div>';
+    var minPace = Math.min.apply(null, paceStats.map(function(s){return s.avgPace;}));
+    var maxPace = Math.max.apply(null, paceStats.map(function(s){return s.avgPace;}));
+    var range = maxPace - minPace || 1;
+    html += '<div style="display:flex;gap:4px;height:80px;align-items:flex-end;margin-bottom:20px">';
+    paceStats.forEach(function(s) {
+      // Lower pace = faster = taller bar (inverted)
+      var h = Math.round((maxPace - s.avgPace) / range * 80 + 10);
+      html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end">';
+      html += '<div style="font-size:8px;color:var(--text3);margin-bottom:2px">'+formatPace(s.avgPace)+'</div>';
+      html += '<div style="width:100%;background:var(--blue);border-radius:3px 3px 0 0;height:'+h+'px"></div>';
+      html += '<div style="font-size:9px;color:var(--text3);margin-top:3px">W'+s.week+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    // Trend
+    var first = paceStats[0].avgPace, last = paceStats[paceStats.length-1].avgPace;
+    var diff = first - last; // positive = getting faster
+    html += '<div class="trend-line"><span class="trend-arrow" style="color:'+(diff>0?'var(--green)':diff<0?'var(--amber)':'var(--text2)')+'">'+(diff>5?'Getting faster':diff<-5?'Slowing down':'Steady')+'</span>';
+    if (Math.abs(diff)>2) html += '<span class="trend-text">'+(diff>0?'':'+')+Math.round(-diff)+'s/km since start</span>';
+    html += '</div></div>';
+  }
+
+  // Cadence trend
+  var cadStats = stats.filter(function(s){return s.avgCad > 0;});
+  if (cadStats.length > 0) {
+    html += '<div class="card"><div class="card-title">Cadence trend (spm)</div>';
+    html += '<div style="display:flex;gap:4px;height:80px;align-items:flex-end;margin-bottom:4px">';
+    var maxCad = Math.max.apply(null, cadStats.map(function(s){return s.avgCad;}));
+    var minCad = Math.min(Math.min.apply(null, cadStats.map(function(s){return s.avgCad;})), 155);
+    cadStats.forEach(function(s) {
+      var h = Math.round((s.avgCad - minCad) / Math.max(maxCad - minCad, 1) * 70 + 10);
+      var color = s.avgCad >= 170 ? 'var(--green)' : s.avgCad >= 160 ? 'var(--amber)' : 'var(--red)';
+      html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end">';
+      html += '<div style="font-size:8px;color:var(--text3);margin-bottom:2px">'+s.avgCad+'</div>';
+      html += '<div style="width:100%;background:'+color+';border-radius:3px 3px 0 0;height:'+h+'px"></div>';
+      html += '<div style="font-size:9px;color:var(--text3);margin-top:3px">W'+s.week+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '<div style="font-size:12px;color:var(--text2);margin-top:6px">Target: 170-180 spm</div>';
+    html += '</div>';
+  }
+
+  // Summary table
+  html += '<div class="card"><div class="card-title">Week-by-week summary</div>';
+  html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">';
+  html += '<tr style="color:var(--text2)"><th style="text-align:left;padding:5px 4px;border-bottom:1px solid var(--border)">Wk</th><th style="padding:5px 4px;border-bottom:1px solid var(--border)">Target</th><th style="padding:5px 4px;border-bottom:1px solid var(--border)">Actual</th><th style="padding:5px 4px;border-bottom:1px solid var(--border)">Pace</th><th style="padding:5px 4px;border-bottom:1px solid var(--border)">Cad</th></tr>';
+  stats.forEach(function(s) {
+    var pct = s.targetKm > 0 ? Math.round(s.actualKm/s.targetKm*100) : 0;
+    var rowColor = s.week === APP.currentWeek ? 'var(--blue-lt)' : 'transparent';
+    html += '<tr style="background:'+rowColor+'">';
+    html += '<td style="padding:6px 4px;border-bottom:1px solid var(--border);font-weight:600">'+s.week+'</td>';
+    html += '<td style="padding:6px 4px;border-bottom:1px solid var(--border);text-align:center">'+s.targetKm+'km</td>';
+    html += '<td style="padding:6px 4px;border-bottom:1px solid var(--border);text-align:center;color:'+(pct>=90?'var(--green)':pct>=70?'var(--amber)':'var(--red)')+'">'+s.actualKm.toFixed(1)+'km</td>';
+    html += '<td style="padding:6px 4px;border-bottom:1px solid var(--border);text-align:center">'+(s.avgPace?formatPace(s.avgPace):'--')+'</td>';
+    html += '<td style="padding:6px 4px;border-bottom:1px solid var(--border);text-align:center">'+(s.avgCad||'--')+'</td>';
+    html += '</tr>';
+  });
+  html += '</table></div></div>';
+
+  el.innerHTML = html;
+}
+
+// ===== COACH CHAT =====
+function populateQuickChips() {
+  var p = APP.profile;
+  var chips = [
+    'Am I on track for my goal?',
+    'How do I improve my cadence?',
+    'What to eat before my long run?',
+    'I feel tired - should I run today?',
+    'What are my HR zones? My max is ' + (p.maxHR||190) + ' bpm',
+    'Best race day strategy for a ' + (p.distLabel||'marathon')
+  ];
+  var labels = ['On track?','Cadence tips','Nutrition','Feeling tired','HR zones','Race strategy'];
+  document.getElementById('quick-chips').innerHTML = chips.map(function(q,i) {
+    return '<button class="qchip" onclick="setQ(\''+q.replace(/'/g,'')+'\')">' + labels[i] + '</button>';
+  }).join('');
+}
+
+async function sendChat() {
+  var inp = document.getElementById('chat-input');
+  var q = inp.value.trim();
+  if (!q) return;
+  inp.value = '';
+  var area = document.getElementById('chat-area');
+
+  var ub = document.createElement('div');
+  ub.className = 'chat-bubble bubble-user';
+  ub.textContent = q;
+  area.appendChild(ub);
+
+  var lb = document.createElement('div');
+  lb.className = 'chat-bubble bubble-ai';
+  lb.innerHTML = '<span class="ldots"><span></span><span></span><span></span></span>';
+  area.appendChild(lb);
+  area.scrollTop = 99999;
+
+  try {
+    var context = buildFullContext();
+    var reply = await callGemini(
+      geminiSystemPrompt() + '\n\nFull training context:\n' + context,
+      q, 400
+    );
+    lb.textContent = reply;
+  } catch(e) {
+    lb.textContent = e.message === 'no_key' ? 'Add your Gemini API key to use the AI coach.' : 'Gemini error: ' + e.message;
+  }
+  area.scrollTop = 99999;
+}
+
+function buildFullContext() {
+  var p = APP.profile;
+  var weekKm = APP.runs.slice(-7).reduce(function(s,r){return s+r.dist;},0);
+  var last = APP.runs[APP.runs.length-1];
+  var stats = APP.weeklyStats;
+  return 'Training week: ' + APP.currentWeek + ' of ' + APP.totalWeeks + '.\n' +
+    'This week: ' + weekKm.toFixed(1) + ' of ' + ((APP.plan[APP.currentWeek-1]||{}).targetKm||0) + ' km.\n' +
+    'Total runs: ' + APP.runs.length + '.\n' +
+    (last ? 'Last run: ' + last.dist + 'km ' + last.type + ', effort ' + last.feel + '/5.\n' : '') +
+    (stats.length ? 'Weeks completed: ' + stats.length + ', avg completion: ' + Math.round(stats.reduce(function(s,w){return s+(w.targetKm>0?w.actualKm/w.targetKm:0);},0)/stats.length*100) + '%.\n' : '') +
+    'Injury: ' + p.injury + '.';
+}
+
+function setQ(t) { document.getElementById('chat-input').value=t; document.getElementById('chat-input').focus(); }
+
+// ===== UTILS =====
+function formatPace(sec) {
+  if (!sec || sec <= 0) return '--';
+  var m = Math.floor(sec/60), s = Math.round(sec%60);
+  return m + ':' + String(s).padStart(2,'0');
+}
+function switchTab(t) {
+  var tabs = ['dash','plan','log','progress','coach'];
+  document.querySelectorAll('.tab').forEach(function(el,i){el.classList.toggle('active',tabs[i]===t);});
+  document.querySelectorAll('.section').forEach(function(el){el.classList.remove('active');});
+  document.getElementById('sec-'+t).classList.add('active');
+}
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+}
+
+// ===== INIT =====
+(function init() {
+  if (load() && APP.profile.name && APP.plan.length > 0) {
+    launchApp();
+  }
+})();
+</script>
+</body>
+</html>
