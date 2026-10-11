@@ -10,7 +10,7 @@
   function $(id) { return document.getElementById(id); }
   function todayISO() { return E.iso(new Date()); }
   var WD = ['Duminică', 'Luni', 'Marți', 'Miercuri', 'Joi', 'Vineri', 'Sâmbătă'];
-  var DSHORT = { Mon: 'Lun', Tue: 'Mar', Fri: 'Vin', Sun: 'Dum' };
+  var DSHORT = { Mon: 'Lun', Tue: 'Mar', Wed: 'Mie', Thu: 'Joi', Fri: 'Vin', Sat: 'Sâm', Sun: 'Dum' };
   function fmtDate(iso, withWd) {
     var d = E.parseISO(iso);
     return (withWd ? WD[d.getDay()] + ', ' : '') + d.getDate() + ' ' + E.MONTHS[d.getMonth()] + (d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : '');

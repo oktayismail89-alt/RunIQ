@@ -168,9 +168,53 @@
     var list = $('chatlist'); list.insertAdjacentHTML('beforeend', '<div class="msg a" id="typing"><span class="spin"></span></div>'); window.scrollTo(0, document.body.scrollHeight);
     try {
       var ans = await AI.chat(A.S, A.S.chat.slice(0, -1), q, A.todayISO());
-      A.S.chat.push({ role: 'model', text: ans.trim(), ts: Date.now() });
+      A.S.chat.push({ role: 'model', text: ans.text.trim(), sources: ans.sources, ts: Date.now() });
     } catch (e) { A.S.chat.push({ role: 'model', text: 'Nu am putut răspunde: ' + e.message, ts: Date.now() }); }
     A.S.chat = A.S.chat.slice(-40); A.save(); busy = false; render(); window.scrollTo(0, document.body.scrollHeight);
+  };
+
+  /* ---------- vreme și mutări ---------- */
+  A.refreshWeather = async function (force) {
+    if (!g.RunWeather) return;
+    try { var had = A.S.weather && A.S.weather.ts; await g.RunWeather.refresh(A.S, force); if (!had || A.S.weather.ts !== had) { A.save(); render(true); } } catch (e) { if (force) A.toast('Prognoza nu a putut fi încărcată'); }
+  };
+  A.openMove = function (week, fromDay) {
+    var S = A.S, t = A.todayISO(), done = {}; S.runs.forEach(function (r) { done[r.date] = true; });
+    var ew = E.effectiveWeek(S, week), s = ew.sessions.filter(function (x) { return x.day === fromDay; })[0]; if (!s) return;
+    var days = E.freeDays(S, week, fromDay, t, done);
+    var h = '<h2>Mută sesiunea</h2><p class="muted small" style="margin-bottom:10px"><b>' + esc(s.label) + ' ' + A.fmtKm(s.km) + ' km</b> · acum ' + E.DAY_RO[s.day].toLowerCase() + ', ' + A.fmtDate(s.date) + '. Doar în aceeași săptămână, fără două sesiuni grele consecutive; lungul rămâne în weekend.</p>';
+    if (!days.length) h += '<div class="note info">Nicio zi liberă validă acum.</div>';
+    days.forEach(function (d) {
+      var date = E.sessionDate(week, d), wi = g.RunWeather && g.RunWeather.dayInfo(S, date), bad = wi && g.RunWeather.issues(wi).length;
+      h += '<button class="btn line block" style="flex-direction:column;align-items:flex-start;gap:3px;margin-bottom:8px;text-align:left" onclick="A.doMove(' + week + ',\'' + fromDay + '\',\'' + d + '\')"><span>' + E.DAY_RO[d] + ', ' + A.fmtDate(date) + '</span><span class="small ' + (bad ? '' : 'muted') + '">' + (wi ? esc(g.RunWeather.brief(wi)) + (bad ? ' ⚠️' : '') : 'fără prognoză') + '</span></button>';
+    });
+    if (s.moved) h += '<button class="btn ghost block" onclick="A.doMove(' + week + ',\'' + fromDay + '\',\'' + s.baseDay + '\')">Readu la ' + E.DAY_RO[s.baseDay].toLowerCase() + ' (ziua din plan)</button>';
+    sheet(h);
+  };
+  function doneMap() { var d = {}; A.S.runs.forEach(function (r) { d[r.date] = true; }); return d; }
+  A.doMove = function (week, from, to) {
+    var v = E.applyMove(A.S, week, from, to, A.todayISO(), doneMap(), 'mutat manual');
+    if (!v.ok) { A.toast('Nu se poate: ' + v.reason); return; }
+    A.save(); closeSheet(); render(true); A.toast('Sesiune mutată pe ' + E.DAY_RO[to].toLowerCase());
+  };
+  A.applySug = function (date) {
+    var sug = g.RunWeather.suggest(A.S, A.todayISO()).filter(function (x) { return x.date === date && x.type === 'move'; })[0];
+    if (!sug) { A.toast('Sugestia nu mai e valabilă'); render(true); return; }
+    var v = E.applyMove(A.S, sug.week, sug.day, sug.to, A.todayISO(), doneMap(), 'mutat din cauza vremii');
+    if (!v.ok) { A.toast('Nu se poate: ' + v.reason); return; }
+    A.save(); render(true); A.toast('Mutat pe ' + E.DAY_RO[sug.to].toLowerCase());
+  };
+  A.dismissSug = function (date) { A.S.dismissed = A.S.dismissed || {}; A.S.dismissed[date] = true; A.save(); render(true); };
+  A.searchCity = async function () {
+    var q = val('s-city'), box = $('s-city-res'); if (!q) return; box.textContent = 'Se caută…';
+    try {
+      var r = await g.RunWeather.geocode(q); A.cityRes = r;
+      box.innerHTML = r.length ? r.map(function (c, i) { return '<button class="btn sm ghost" style="margin:4px 6px 0 0" onclick="A.pickCity(' + i + ')">' + esc(c.name) + '</button>'; }).join('') : 'Niciun rezultat.';
+    } catch (e) { box.textContent = 'Eroare: ' + e.message; }
+  };
+  A.pickCity = function (i) {
+    var c = A.cityRes[i]; A.S.loc = { name: c.name, lat: c.lat, lon: c.lon }; A.S.weather = null; A.save();
+    $('s-city-res').textContent = '✓ ' + c.name; A.refreshWeather(true);
   };
 
   /* ---------- greutate / dureri ---------- */
@@ -206,6 +250,7 @@
     var S = A.S;
     sheet('<h2>Setări</h2><label>Cheie API Gemini</label><input id="s-key" type="password" autocomplete="off" placeholder="AIza…" value="' + esc(S.apiKey || '') + '"><div class="tiny" style="margin-top:5px">Se păstrează doar în acest browser. Obține una gratuit din Google AI Studio.</div>' +
       '<div class="row" style="margin-top:12px"><button class="btn grow" onclick="A.saveKey()">Salvează cheia</button><button class="btn ghost" onclick="A.testKey()">Testează</button></div><div class="tiny" id="s-st" style="margin-top:8px"></div>' +
+      '<label>Locație pentru vreme</label><div class="row"><input id="s-city" placeholder="' + esc((S.loc || g.RunWeather.DEF).name) + '"><button class="btn sm ghost" onclick="A.searchCity()">Caută</button></div><div class="tiny" id="s-city-res" style="margin-top:6px">Acum: ' + esc((S.loc || g.RunWeather.DEF).name) + '. Prognoza vine de la Open-Meteo.</div>' +
       '<label>Date</label><div class="row" style="flex-wrap:wrap"><button class="btn sm ghost" onclick="A.exportData()">Exportă JSON</button><label class="btn sm ghost" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)">Importă<input type="file" accept="application/json" style="display:none" onchange="A.importData(this)"></label><button class="btn sm danger" onclick="A.resetAll()">Șterge tot</button></div>' +
       '<div class="tiny" style="margin-top:16px">RunIQ 4.0 · plan de bază fix, ajustat de Gemini în limite validate în cod.</div>');
   };
@@ -236,7 +281,8 @@
     $('logo').innerHTML = I.logo; $('btn-settings').innerHTML = I.gear;
     $('btn-settings').onclick = A.openSettings;
     $('scrim').addEventListener('click', function (e) { if (e.target === $('scrim')) closeSheet(); });
-    A.load(); A.save(); render(); autoAdapt();
+    A.load(); A.save(); render(); A.refreshWeather(); autoAdapt();
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) A.refreshWeather(); });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })(window);

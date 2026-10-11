@@ -88,24 +88,79 @@
     return (note ? note + ' · ' : '') + d;
   }
   function effectiveWeek(S, w) {
-    var bw = baseWeek(w), adj = (S.adjust || {})[w];
+    var bw = baseWeek(w), adj = (S.adjust || {})[w], moves = (adj && adj.moves) || {};
     var sessions = bw.sessions.map(function (b) {
       var a = adj && adj.sessions && adj.sessions.filter(function (x) { return x.day === b.day; })[0];
       var kind = a ? a.kind : b.kind, km = a ? a.km : b.km;
+      var day = moves[b.day] || b.day;
       var changed = !!a && (kind !== b.kind || km !== b.km);
       return {
-        day: b.day, date: sessionDate(w, b.day), kind: kind, km: km, baseKm: b.km, baseKind: b.kind, changed: changed,
+        day: day, baseDay: b.day, moved: day !== b.day, date: sessionDate(w, day), kind: kind, km: km, baseKm: b.km, baseKind: b.kind, changed: changed,
         label: b.kind === 'race' ? b.type : KIND_RO[kind],
         pace: b.kind === 'race' ? fillTokens(S, w, b.pt || '') : paceText(S, w, kind),
-        detail: describe(S, w, b, kind, km, changed && a.note ? a.note : ''), 
+        detail: describe(S, w, b, kind, km, changed && a.note ? a.note : '')
       };
     });
+    sessions.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
     var total = sessions.reduce(function (s, x) { return s + x.km; }, 0);
     return {
       week: w, range: weekRange(w), phase: bw.phase, coachNote: bw.coachNote || '', sessions: sessions,
-      total: Math.round(total * 10) / 10, baseTotal: bw.targetKm, adjusted: !!(adj && sessions.some(function (x) { return x.changed; })),
+      total: Math.round(total * 10) / 10, baseTotal: bw.targetKm,
+      adjusted: !!(adj && sessions.some(function (x) { return x.changed || x.moved; })),
+      volumeAdjusted: sessions.some(function (x) { return x.changed; }),
       adjNote: adj ? adj.note : '', adjTs: adj ? adj.ts : 0, adjSrc: adj ? adj.src : ''
     };
+  }
+
+  /* ---------- mutarea unei sesiuni în alta zi a aceleiași săptămâni ---------- */
+  function isHard(kind) { return kind === 'long' || kind === 'race' || (RANK[kind] !== undefined && RANK[kind] >= 1); }
+  function validateMove(S, week, fromDay, toDay, today, doneDates) {
+    doneDates = doneDates || {};
+    var ew = effectiveWeek(S, week);
+    var s = ew.sessions.filter(function (x) { return x.day === fromDay; })[0];
+    if (!s) return { ok: false, reason: 'nu există sesiune în ziua aleasă' };
+    if (s.baseKind === 'race') return { ok: false, reason: 'cursele și testele nu se mută' };
+    if (s.kind === 'rest') return { ok: false, reason: 'e zi de odihnă' };
+    if (toDay === fromDay) return { ok: false, reason: 'aceeași zi' };
+    if (s.date < today || doneDates[s.date]) return { ok: false, reason: 'sesiunea e în trecut sau deja făcută' };
+    var toDate = sessionDate(week, toDay);
+    if (toDate < today) return { ok: false, reason: 'ziua aleasă a trecut' };
+    if (ew.sessions.some(function (x) { return x.day === toDay; })) return { ok: false, reason: 'ziua e ocupată' };
+    var hard = isHard(s.kind), ti = DAY_IDX[toDay];
+    if (s.kind === 'long' && toDay !== 'Sat' && toDay !== 'Sun') return { ok: false, reason: 'lungul rămâne în weekend' };
+    var others = ew.sessions.filter(function (x) { return x !== s; });
+    for (var i = 0; i < others.length; i++) {
+      var x = others[i], xi = DAY_IDX[x.day];
+      if (Math.abs(xi - ti) === 1 && hard && isHard(x.kind)) return { ok: false, reason: 'ar fi două sesiuni grele consecutive' };
+      if (x.baseKind === 'race' && xi - ti === 1) return { ok: false, reason: 'ziua dinaintea cursei rămâne liberă' };
+      if (x.kind === 'long' && xi - ti === 1 && hard) return { ok: false, reason: 'prea aproape de lung' };
+    }
+    return { ok: true, session: s, toDate: toDate };
+  }
+  function freeDays(S, week, fromDay, today, doneDates) {
+    return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].filter(function (d) { return validateMove(S, week, fromDay, d, today, doneDates).ok; });
+  }
+  function applyMove(S, week, fromDay, toDay, today, doneDates, note) {
+    var v = validateMove(S, week, fromDay, toDay, today, doneDates);
+    if (!v.ok) return v;
+    S.adjust = S.adjust || {};
+    var adj = S.adjust[week] = S.adjust[week] || { sessions: [], moves: {}, note: '', ts: Date.now(), src: 'mutare' };
+    adj.moves = adj.moves || {};
+    var base = v.session.baseDay;
+    if (toDay === base) delete adj.moves[base]; else adj.moves[base] = toDay;
+    adj.ts = Date.now();
+    if (note) adj.note = adj.note ? adj.note + ' · ' + note : note;
+    cleanup(S, week);
+    return v;
+  }
+  function cleanup(S, week) {   // elimină ajustarea goală
+    var adj = (S.adjust || {})[week]; if (!adj) return;
+    var hasMoves = adj.moves && Object.keys(adj.moves).length;
+    var hasSess = adj.sessions && adj.sessions.some(function (x) { var b = baseWeek(week).sessions.filter(function (q) { return q.day === x.day; })[0]; return b && (x.kind !== b.kind || x.km !== b.km); });
+    if (!hasMoves && !hasSess) delete S.adjust[week];
+  }
+  function undoMove(S, week, baseDay) {
+    var adj = (S.adjust || {})[week]; if (!adj || !adj.moves) return; delete adj.moves[baseDay]; cleanup(S, week);
   }
 
   /* ---------- statistici din alergări ---------- */
@@ -158,10 +213,10 @@
       if (capPrev < maxTotal) { maxTotal = capPrev; problems.push('plafonat la +10% față de ce ai alergat efectiv săptămâna trecută'); }
     }
     bw.sessions.forEach(function (b) {
-      var c = cur.sessions.filter(function (x) { return x.day === b.day; })[0];
-      var date = sessionDate(week, b.day);
+      var c = cur.sessions.filter(function (x) { return x.baseDay === b.day; })[0];
+      var date = c.date;
       var frozen = date < ctx.today || (date === ctx.today && ctx.doneDates[date]);
-      var p = (proposal || []).filter(function (x) { return x && x.day === b.day; })[0];
+      var p = (proposal || []).filter(function (x) { return x && (x.day === b.day || x.day === c.day); })[0];
       var s = { day: b.day, kind: c.kind, km: c.km, note: '' , frozen: false, fixed: false};
       if (b.kind === 'race') { out.push({ day: b.day, kind: 'race', km: b.km, note: '', fixed: true }); return; }
       if (frozen) { out.push({ day: b.day, kind: c.kind, km: c.km, note: '', frozen: true }); return; }
@@ -203,6 +258,6 @@
     weekRange: weekRange, fmtPace: fmtPace, fmtTime: fmtTime, parseTime: parseTime, MONTHS: MONTHS,
     hmpAt: hmpAt, zones: zones, paceText: paceText, fitnessFromResult: fitnessFromResult,
     baseWeek: baseWeek, effectiveWeek: effectiveWeek, runsInWeek: runsInWeek, weekStats: weekStats, lastRuns: lastRuns,
-    ctxFor: ctxFor, validate: validate, fillTokens: fillTokens
+    ctxFor: ctxFor, validate: validate, fillTokens: fillTokens, validateMove: validateMove, freeDays: freeDays, applyMove: applyMove, undoMove: undoMove, cleanup: cleanup, isHard: isHard, DAY_IDX: DAY_IDX
   };
 })(typeof window !== 'undefined' ? window : globalThis);

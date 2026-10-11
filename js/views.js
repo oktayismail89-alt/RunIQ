@@ -33,6 +33,34 @@
   }
   function head(title, sub) { return '<div><h1>' + title + '</h1>' + (sub ? '<div class="sub" style="margin-top:3px">' + sub + '</div>' : '') + '</div>'; }
 
+  /* ---------- vreme ---------- */
+  function weatherChips(date) {
+    var d = g.RunWeather && g.RunWeather.dayInfo(A.S, date); if (!d) return '';
+    var h = '<span class="chip">' + g.RunWeather.brief(d) + '</span>', bw = g.RunWeather.bestWindow(d);
+    if (bw && (g.RunWeather.issues(d).length || d.tmax >= 24)) h += '<span class="chip">🕐 cel mai bine ' + g.RunWeather.fmtWin(bw) + '</span>';
+    return h;
+  }
+  function suggestionCards(t) {
+    var sugs = g.RunWeather ? g.RunWeather.suggest(A.S, t).slice(0, 2) : [];
+    return sugs.map(function (x) {
+      var s = x.session, h = '<div class="card" style="border:1.5px solid var(--warn)"><div class="row" style="align-items:flex-start"><div style="font-size:28px;line-height:1">' + g.RunWeather.icon(x.info) + '</div><div class="grow"><div class="bold">' + A.fmtDate(x.date, true) + ' · ' + esc(s.label) + ' ' + A.fmtKm(s.km) + ' km</div><div class="small muted">Prognoză: ' + esc(x.reasons.join(', ')) + '</div></div></div>';
+      if (x.type === 'move') {
+        h += '<div class="note warn" style="margin-top:10px">Sugestie: mută pe <b>' + E.DAY_RO[x.to].toLowerCase() + ', ' + A.fmtDate(x.toDate) + '</b><br><span class="small">' + esc(g.RunWeather.brief(x.toInfo)) + '</span></div>' +
+          '<div class="row" style="margin-top:10px"><button class="btn sm" onclick="A.applySug(\'' + x.date + '\')">Mută</button><button class="btn sm ghost" onclick="A.dismissSug(\'' + x.date + '\')">Las așa</button></div>';
+      } else {
+        h += '<div class="note info" style="margin-top:10px">' + (x.type === 'race' ? 'Cursa nu se mută. ' : 'Nu am o zi mai bună în această săptămână. ') + (x.win ? 'Cel mai bun interval: <b>' + g.RunWeather.fmtWin(x.win) + '</b> (~' + x.win.pop + '% ploaie, ' + x.win.temp + '°C).' : '') + '</div>' +
+          '<div class="row" style="margin-top:10px"><button class="btn sm ghost" onclick="A.dismissSug(\'' + x.date + '\')">Am înțeles</button></div>';
+      }
+      return h + '</div>';
+    }).join('');
+  }
+  function sessionExtras(S, w, s, x, t) {
+    var h = '', d = g.RunWeather && g.RunWeather.dayInfo(S, s.date);
+    if (d && s.date >= t && x.st !== 'done') h += '<span class="tiny">' + g.RunWeather.icon(d) + ' ' + Math.round(d.tmin) + '–' + Math.round(d.tmax) + '°C · ' + Math.round(d.pop) + '% ploaie</span> ';
+    if (s.date >= t && x.st !== 'done' && s.baseKind !== 'race' && s.kind !== 'rest') h += '<button class="btn sm ghost" style="margin-top:6px;padding:5px 10px;font-size:12px" onclick="A.openMove(' + w + ',\'' + s.day + '\')">' + (s.moved ? 'Mută / readu' : 'Mută') + '</button>';
+    return h ? '<div style="margin-top:4px">' + h + '</div>' : '';
+  }
+
   /* ================= AZI ================= */
   function today() {
     var S = A.S, t = A.todayISO(), w0 = E.weekOf(t), h = '';
@@ -59,7 +87,7 @@
           h += '<div class="hero done"><div class="kicker">Făcut azi ✓</div><div class="big">' + A.fmtKm(sx.km) + '<small>km</small></div><p>' + paceOf(r0) + '/km' + (r0.hr ? ' · ' + r0.hr + ' bpm' : '') + ' · ' + A.FEEL[r0.feel] + ' ' + A.FEEL_TXT[r0.feel] + '. Planul era ' + A.fmtKm(ts.km) + ' km.</p></div>';
         } else {
           h += '<div class="hero"><div class="kicker">Azi · ' + esc(ts.label) + '</div><div class="big">' + A.fmtKm(ts.km) + '<small>km</small></div>' +
-            '<p>' + esc(ts.detail) + '</p><div class="chips">' + (ts.pace ? '<span class="chip">⏱ ' + esc(ts.pace) + '</span>' : '') +
+            '<p>' + esc(ts.detail) + '</p><div class="chips">' + (ts.pace ? '<span class="chip">⏱ ' + esc(ts.pace) + '</span>' : '') + weatherChips(t) +
             (ts.changed ? '<span class="chip">ajustat (plan: ' + A.fmtKm(ts.baseKm) + ' km)</span>' : '') +
             (ts.kind === 'race' ? '<span class="chip">🏁 cursă / test</span>' : '') + '</div>' +
             '<div style="margin-top:16px"><button class="btn white block" onclick="A.openLog(\'' + t + '\')">' + I.check.replace('<svg', '<svg width="18" height="18"') + ' Am alergat</button></div></div>';
@@ -71,10 +99,11 @@
       }
     }
 
+    if (w0 >= 1) h += suggestionCards(t);
     // săptămâna
     if (w0 >= 1) {
       var pct = Math.min(100, Math.round(st.actual / Math.max(1, ew.total) * 100));
-      h += '<div class="card"><div class="row between"><h2 style="margin:0">Săptămâna asta</h2><span class="badge ' + (ew.adjusted ? 'warn' : 'blue') + '">' + (ew.adjusted ? 'ajustată · ' : '') + A.fmtKm(ew.total) + ' km</span></div>' +
+      h += '<div class="card"><div class="row between"><h2 style="margin:0">Săptămâna asta</h2><span class="badge ' + (ew.adjusted ? 'warn' : 'blue') + '">' + (ew.volumeAdjusted ? 'ajustată · ' : ew.adjusted ? 'mutată · ' : '') + A.fmtKm(ew.total) + ' km</span></div>' +
         '<div class="small muted" style="margin:6px 0 10px">' + ew.range + ' · ' + A.fmtKm(st.actual) + ' din ' + A.fmtKm(ew.total) + ' km</div><div class="bar ' + (pct >= 100 ? 'ok' : '') + '"><i style="width:' + pct + '%"></i></div>' +
         '<div class="days" style="grid-template-columns:repeat(' + ew.sessions.length + ',1fr)">' + ew.sessions.map(function (s) {
           var x = status(s, t), cls = x.st === 'done' ? 'done' : x.st === 'today' ? 'today' : x.st === 'missed' ? 'missed' : '';
@@ -109,10 +138,17 @@
     if (la && la.assessment) h += '<p style="margin-top:10px">' + esc(la.assessment) + '</p>';
     else if (!adj.length) h += '<p class="muted small" style="margin-top:10px">Planul e neschimbat. Ajustările apar aici după alergările tale.</p>';
     if (adj.length) {
-      h += '<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">' + adj.map(function (e) {
-        var d = Math.round((e.total - e.baseTotal) * 10) / 10;
-        return '<div class="note warn"><b>Săpt. ' + e.week + ':</b> ' + A.fmtKm(e.total) + ' km în loc de ' + A.fmtKm(e.baseTotal) + ' (' + (d > 0 ? '+' : '') + A.fmtKm(d) + ')' + (e.adjNote ? '<br><span class="small">' + esc(e.adjNote) + '</span>' : '') + '</div>';
-      }).join('') + '</div><div style="margin-top:10px"><button class="btn sm line" onclick="A.revertAll()">Revino la planul de bază</button></div>';
+      var lines = [];
+      adj.forEach(function (e) {
+        if (e.volumeAdjusted) {
+          var d = Math.round((e.total - e.baseTotal) * 10) / 10;
+          lines.push('<div class="note warn"><b>Săpt. ' + e.week + ':</b> ' + A.fmtKm(e.total) + ' km în loc de ' + A.fmtKm(e.baseTotal) + ' (' + (d > 0 ? '+' : '') + A.fmtKm(d) + ')' + (e.adjNote ? '<br><span class="small">' + esc(e.adjNote) + '</span>' : '') + '</div>');
+        }
+        e.sessions.filter(function (x) { return x.moved; }).forEach(function (x) {
+          lines.push('<div class="note info"><b>Mutată:</b> sesiunea de ' + E.DAY_RO[x.baseDay].toLowerCase() + ' → ' + E.DAY_RO[x.day].toLowerCase() + ' (' + A.fmtDate(x.date) + ')</div>');
+        });
+      });
+      h += '<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">' + lines.join('') + '</div><div style="margin-top:10px"><button class="btn sm line" onclick="A.revertAll()">Revino la planul de bază</button></div>';
     }
     if (w0 >= 1) h += '<div style="margin-top:12px"><button class="btn sm ghost" id="btn-adapt" onclick="A.adaptNow()">Verifică planul acum</button></div>';
     return h + '</div>';
@@ -160,13 +196,13 @@
     var isCur = w === cur && w0 >= 1, past = w0 >= 1 && w < cur, open = openWeeks[w] !== undefined ? openWeeks[w] : isCur;
     var pct = past && ew.total ? Math.round(st.actual / ew.total * 100) : null;
     var h = '<div class="week ' + (isCur ? 'cur ' : '') + (past ? 'past ' : '') + (open ? 'open' : '') + '" id="wk' + w + '"><header onclick="A.toggleWeek(' + w + ')"><div class="wnum">' + w + '</div><div class="grow"><div class="bold">' + ew.range + (isCur ? ' <span class="badge acc">acum</span>' : '') + '</div><div class="small muted">' + esc(ew.phase) + '</div></div><div style="text-align:right"><div class="bold">' + A.fmtKm(ew.total) + ' km</div>' +
-      (ew.adjusted ? '<span class="badge warn">ajustat</span>' : pct !== null && st.count ? '<span class="badge ' + (pct >= 90 ? 'ok' : pct >= 70 ? 'warn' : 'bad') + '">' + pct + '%</span>' : '') + '</div></header><div class="body">';
+      (ew.volumeAdjusted ? '<span class="badge warn">ajustat</span>' : ew.adjusted ? '<span class="badge blue">mutat</span>' : pct !== null && st.count ? '<span class="badge ' + (pct >= 90 ? 'ok' : pct >= 70 ? 'warn' : 'bad') + '">' + pct + '%</span>' : '') + '</div></header><div class="body">';
     if (ew.coachNote) h += '<div class="note info small" style="margin-bottom:6px">' + esc(ew.coachNote) + '</div>';
     if (ew.adjusted && ew.adjNote) h += '<div class="note warn small" style="margin-bottom:6px"><b>Ajustat:</b> ' + esc(ew.adjNote) + '</div>';
     ew.sessions.forEach(function (s) {
       var x = status(s, t);
-      h += '<div class="sess ' + (s.changed ? 'changed' : '') + '"><div class="d">' + A.DSHORT[s.day] + '<i>' + E.parseISO(s.date).getDate() + ' ' + E.MONTHS[E.parseISO(s.date).getMonth()] + '</i></div><div class="grow"><div class="t">' + esc(s.label) + (x.st === 'done' ? ' <span class="badge ok">făcut ' + A.fmtKm(x.km) + ' km</span>' : x.st === 'missed' && w0 >= 1 ? ' <span class="badge">ratat</span>' : '') + '</div>' +
-        '<div class="small muted">' + (s.pace ? '<b>' + esc(s.pace) + '</b> · ' : '') + esc(s.detail) + '</div></div><div class="km">' + A.fmtKm(s.km) + (s.changed ? '<div class="tiny" style="text-decoration:line-through">' + A.fmtKm(s.baseKm) + '</div>' : '') + '</div></div>';
+      h += '<div class="sess ' + (s.changed ? 'changed' : '') + '"><div class="d">' + A.DSHORT[s.day] + '<i>' + E.parseISO(s.date).getDate() + ' ' + E.MONTHS[E.parseISO(s.date).getMonth()] + '</i></div><div class="grow"><div class="t">' + esc(s.label) + (s.moved ? ' <span class="badge blue">mutat din ' + A.DSHORT[s.baseDay] + '</span>' : '') + (x.st === 'done' ? ' <span class="badge ok">făcut ' + A.fmtKm(x.km) + ' km</span>' : x.st === 'missed' && w0 >= 1 ? ' <span class="badge">ratat</span>' : '') + '</div>' +
+        '<div class="small muted">' + (s.pace ? '<b>' + esc(s.pace) + '</b> · ' : '') + esc(s.detail) + '</div>' + sessionExtras(S, w, s, x, t) + '</div><div class="km">' + A.fmtKm(s.km) + (s.changed ? '<div class="tiny" style="text-decoration:line-through">' + A.fmtKm(s.baseKm) + '</div>' : '') + '</div></div>';
     });
     return h + '</div></div>';
   }
@@ -208,11 +244,11 @@
   }
 
   /* ================= COACH ================= */
-  var SUGG = ['Cum stau față de plan?', 'Mă doare gamba. Ce fac?', 'Pot muta alergarea de azi?', 'Ce mănânc înainte de lung?'];
+  var SUGG = ['Cum stau față de plan?', 'Ce vreme va fi pentru alergările din săptămâna asta?', 'Mă doare gamba. Ce fac?', 'Când e semimaratonul OMV din București?'];
   function coach() {
     var S = A.S, h = head('Coach', S.apiKey ? 'întreabă orice despre antrenament' : 'adaugă cheia Gemini în Setări');
     if (!S.apiKey) return h + '<div class="card"><div class="note info">Chat-ul folosește Gemini. Fără cheie, planul și ajustările pe reguli funcționează în continuare.</div><div style="margin-top:12px"><button class="btn" onclick="A.openSettings()">Adaugă cheia</button></div></div>';
-    h += '<div class="chat" id="chatlist">' + (S.chat.length ? S.chat.map(function (m) { return '<div class="msg ' + (m.role === 'user' ? 'u' : 'a') + '">' + esc(m.text) + '</div>'; }).join('') : '<div class="card empty small">Încă nimic. Începe cu o întrebare:</div>') + '</div>';
+    h += '<div class="chat" id="chatlist">' + (S.chat.length ? S.chat.map(function (m) { return '<div class="msg ' + (m.role === 'user' ? 'u' : 'a') + '">' + esc(m.text) + (m.sources && m.sources.length ? '<div class="tiny" style="margin-top:8px">Surse: ' + m.sources.map(function (x) { return '<a href="' + esc(x.uri) + '" target="_blank" rel="noopener" style="color:var(--blue)">' + esc(x.title) + '</a>'; }).join(' · ') + '</div>' : '') + '</div>'; }).join('') : '<div class="card empty small">Încă nimic. Începe cu o întrebare:</div>') + '</div>';
     h += '<div class="suggest">' + SUGG.map(function (q) { return '<button onclick="A.ask(this.textContent)">' + esc(q) + '</button>'; }).join('') + '</div>';
     h += '<div class="chatbar"><input id="chatin" placeholder="Scrie un mesaj…" enterkeyhint="send" onkeydown="if(event.key===\'Enter\')A.ask()"><button class="btn" style="padding:0 16px" onclick="A.ask()" aria-label="Trimite">' + I.send.replace('<svg', '<svg width="20" height="20"') + '</button></div>';
     return h;

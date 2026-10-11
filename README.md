@@ -10,8 +10,14 @@ Antrenor de alergare personal (PWA, fără build). Țintă: semi ~1:50 (mai 2027
 - **Validatorul** (`validate()` în `engine.js`) decide ce intră în plan: zile fixe, minim 5 km, niciodată peste kilometrii din bază, fără intensitate mai mare, creștere ≤10% față de ce ai alergat efectiv (doar săptămâni încheiate), fără calitate la durere/oboseală, odihnă doar la durere ≥2. Fără cheie sau la eroare Gemini rămân active aceleași reguli.
 - Fiecare ajustare e marcată în plan, cu motiv, și poate fi anulată („Revino la planul de bază”).
 
+## Vreme și internet
+
+- **Prognoza** vine de la Open-Meteo (gratuit, fără cheie), pentru locația din Setări (implicit București). Codul detectează zilele proaste (ploaie ≥60% sau ≥3 mm, vânt ≥40 km/h, caniculă ≥30°C, ger ≤−8°C), propune mutarea sesiunii într-o zi liberă mai bună din aceeași săptămână și arată cel mai bun interval orar.
+- **Mutarea** e validată în cod: aceeași săptămână, fără două sesiuni grele consecutive, lungul rămâne în weekend, cursele nu se mută, ziua dinaintea cursei rămâne liberă, nimic în trecut. Se poate face și manual din Plan.
+- **Chat-ul** folosește căutarea Google din Gemini (grounding) pentru informații actuale și afișează sursele. Ajustările planului nu o folosesc: cer JSON strict, validat în cod.
+
 ## Fișiere
 
-`index.html`, `css/style.css`, `js/data.js` (plan), `js/engine.js` (logică pură), `js/ai.js` (Gemini), `js/core.js`, `js/views.js`, `js/actions.js`, `manifest.webmanifest`, `icon.svg`.
+`index.html`, `css/style.css`, `js/data.js` (plan), `js/engine.js` (logică pură), `js/weather.js` (vreme + sugestii), `js/ai.js` (Gemini), `js/core.js`, `js/views.js`, `js/actions.js`, `manifest.webmanifest`, `icon.svg`.
 
 Datele stau în `localStorage` (`runiq_v4`). La prima deschidere se importă alergările, greutatea, durerile și cheia din versiunea veche (`runiq_v3`, rămâne neatinsă).
