@@ -45,6 +45,7 @@
     ['runs', 'body', 'niggles', 'chat'].forEach(function (k) { if (!Array.isArray(st[k])) st[k] = []; });
     if (!st.adjust) st.adjust = {};
     A.S = S = st;
+    E.usePlan(st);
     return st;
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }

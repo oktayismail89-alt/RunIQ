@@ -71,7 +71,7 @@
 
   // sugestii pentru sesiunile din următoarele zile (în limita prognozei)
   function suggest(S, today) {
-    var out = [], w0 = E.weekOf(today); if (w0 < 1 || w0 > 52 || !S.weather) return out;
+    var out = [], w0 = E.weekOf(today); if (w0 < 1 || w0 > E.nWeeks() || !S.weather) return out;
     var doneDates = {}; (S.runs || []).forEach(function (r) { doneDates[r.date] = true; });
     var dismissed = S.dismissed || {};
     [E.clampWeek(w0), E.clampWeek(w0 + 1)].filter(function (w, i, a) { return a.indexOf(w) === i; }).forEach(function (w) {

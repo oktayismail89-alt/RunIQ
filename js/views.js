@@ -15,14 +15,14 @@
     return { st: 'future' };
   }
   function nextSession(from, today) {
-    for (var w = from; w <= Math.min(52, from + 2); w++) {
+    for (var w = from; w <= Math.min(E.nWeeks(), from + 2); w++) {
       var ew = E.effectiveWeek(A.S, w), s = ew.sessions.filter(function (x) { return x.date > today; })[0];
       if (s) return { s: s, w: w };
     }
     return null;
   }
   function nextMilestone(today) {
-    var m = g.FIXED_PLAN.milestones.filter(function (x) { return x.date >= today; })[0];
+    var m = E.plan().milestones.filter(function (x) { return x.date >= today; })[0];
     return m || null;
   }
   function restText(today) {
@@ -32,6 +32,25 @@
     return 'Zi liberă. Recuperarea face parte din antrenament.';
   }
   function head(title, sub) { return '<div><h1>' + title + '</h1>' + (sub ? '<div class="sub" style="margin-top:3px">' + sub + '</div>' : '') + '</div>'; }
+
+  /* ---------- pași structurați ---------- */
+  var STEP_LBL = { wu: 'Încălzire', cd: 'Relaxare', work: 'Lucru' };
+  function stepsHtml(steps) {
+    if (!steps || !steps.length) return '';
+    var unit = function (d, u) { return u === 'km' ? A.fmtKm(d) + ' km' : u === 'm' ? d + ' m' : u === 'min' ? d + ' min' : d + ' s'; };
+    return '<div class="steps">' + steps.map(function (st) {
+      var what = (st.n > 1 ? st.n + ' × ' : '') + unit(st.d, st.u) + (st.label ? ' ' + esc(st.label) : '');
+      var rec = st.rec ? ', pauză ' + unit(st.rec.d, st.rec.u) + ' ' + esc(st.rec.pace) : '';
+      var isWork = st.t === 'work' && st.z !== 'easy' && st.z !== 'long';
+      return '<div class="step ' + (isWork ? 'work' : '') + '"><b>' + (st.t === 'work' ? (isWork ? 'Efort' : 'Ușor') : STEP_LBL[st.t]) + '</b><span>' + what + ' · <b style="all:unset;font-weight:700">' + esc(st.pace) + '</b>' + rec + '</span></div>';
+    }).join('') + '</div>';
+  }
+  function planCard() {
+    var S = A.S, P = E.plan();
+    return '<div class="card"><div class="row between"><div class="grow"><div class="tiny" style="text-transform:uppercase;letter-spacing:.06em;font-weight:700">Planul activ</div><h2 style="margin:3px 0 2px">' + esc(P.name) + '</h2><div class="small muted">' + esc(P.goal.label) + '</div></div></div>' +
+      '<div class="small muted" style="margin-top:8px">' + E.nWeeks() + ' săptămâni · ' + A.fmtDate(P.start) + ' → ' + A.fmtDate(P.goal.raceDate || E.sessionDate(E.nWeeks(), 'Sun')) + '</div>' +
+      '<div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn sm" onclick="A.openWizard()">Plan nou</button>' + (S.archive ? '<button class="btn sm line" onclick="A.restorePlan()">Revino la planul anterior</button>' : '') + '</div></div>';
+  }
 
   /* ---------- vreme ---------- */
   function weatherChips(date) {
@@ -64,14 +83,14 @@
   /* ================= AZI ================= */
   function today() {
     var S = A.S, t = A.todayISO(), w0 = E.weekOf(t), h = '';
-    if (w0 > 52) {
-      return head('Plan încheiat', 'Ai terminat cele 52 de săptămâni.') + '<div class="hero done"><div class="kicker">Felicitări</div><div class="big">Maraton ✔</div><p>Poți exporta jurnalul din Setări.</p></div>';
+    if (w0 > E.nWeeks()) {
+      return head('Plan încheiat', 'Ai terminat cele ' + E.nWeeks() + ' săptămâni.') + '<div class="hero done"><div class="kicker">Felicitări</div><div class="big">Plan terminat ✔</div><p>Poți exporta jurnalul din Setări sau poți începe un plan nou.</p><div style="margin-top:14px"><button class="btn white" onclick="A.openWizard()">Plan nou</button></div></div>';
     }
     var week = E.clampWeek(w0), ew = E.effectiveWeek(S, week), st = E.weekStats(S, week);
-    h += head(A.fmtDate(t, true), w0 < 1 ? 'Planul începe luni, ' + A.fmtDate(E.START) : 'Săptămâna ' + week + ' din 52 · ' + esc(ew.phase));
+    h += head(A.fmtDate(t, true), w0 < 1 ? 'Planul începe luni, ' + A.fmtDate(E.startISO()) : 'Săptămâna ' + week + ' din ' + E.nWeeks() + ' · ' + esc(ew.phase));
 
     if (w0 < 1) {
-      var left = E.dayDiff(E.parseISO(t), E.parseISO(E.START));
+      var left = E.dayDiff(E.parseISO(t), E.parseISO(E.startISO()));
       var first = ew.sessions[0];
       h += '<div class="hero rest"><div class="kicker">Start în</div><div class="big">' + left + '<small>' + (left === 1 ? 'zi' : 'zile') + '</small></div>' +
         '<p>Prima alergare: <b>' + A.fmtDate(first.date, true) + '</b>, ' + A.fmtKm(first.km) + ' km ușor, ritm ' + esc(first.pace) + '.</p>' +
@@ -87,7 +106,7 @@
           h += '<div class="hero done"><div class="kicker">Făcut azi ✓</div><div class="big">' + A.fmtKm(sx.km) + '<small>km</small></div><p>' + paceOf(r0) + '/km' + (r0.hr ? ' · ' + r0.hr + ' bpm' : '') + ' · ' + A.FEEL[r0.feel] + ' ' + A.FEEL_TXT[r0.feel] + '. Planul era ' + A.fmtKm(ts.km) + ' km.</p></div>';
         } else {
           h += '<div class="hero"><div class="kicker">Azi · ' + esc(ts.label) + '</div><div class="big">' + A.fmtKm(ts.km) + '<small>km</small></div>' +
-            '<p>' + esc(ts.detail) + '</p><div class="chips">' + (ts.pace ? '<span class="chip">⏱ ' + esc(ts.pace) + '</span>' : '') + weatherChips(t) +
+            '<p>' + esc(ts.steps ? '' : ts.detail) + '</p>' + stepsHtml(ts.steps) + '<div class="chips">' + (ts.pace ? '<span class="chip">⏱ ' + esc(ts.pace) + '</span>' : '') + weatherChips(t) +
             (ts.changed ? '<span class="chip">ajustat (plan: ' + A.fmtKm(ts.baseKm) + ' km)</span>' : '') +
             (ts.kind === 'race' ? '<span class="chip">🏁 cursă / test</span>' : '') + '</div>' +
             '<div style="margin-top:16px"><button class="btn white block" onclick="A.openLog(\'' + t + '\')">' + I.check.replace('<svg', '<svg width="18" height="18"') + ' Am alergat</button></div></div>';
@@ -128,7 +147,7 @@
   function coachCard(week, w0) {
     var S = A.S, la = S.lastAdapt, h = '';
     var adj = [];
-    [week, week + 1].forEach(function (w) { if (w >= 1 && w <= 52) { var e = E.effectiveWeek(S, w); if (e.adjusted) adj.push(e); } });
+    [week, week + 1].forEach(function (w) { if (w >= 1 && w <= E.nWeeks()) { var e = E.effectiveWeek(S, w); if (e.adjusted) adj.push(e); } });
     if (!S.apiKey && !S.welcomed) {
       return '<div class="card"><h2>Coach AI</h2><div class="note info">Planul funcționează și fără AI. Cu o cheie Gemini, coach-ul îți analizează fiecare alergare și ajustează săptămâna curentă și următoarea, în limitele planului.</div><div style="margin-top:12px" class="row"><button class="btn sm" onclick="A.openSettings()">Adaugă cheia</button><button class="btn sm ghost" onclick="A.dismissWelcome()">Mai târziu</button></div></div>';
     }
@@ -155,20 +174,20 @@
   }
 
   function fitnessCard() {
-    var S = A.S, t = A.todayISO(), week = E.clampWeek(E.weekOf(t)), f = S.fitness || E.DEFAULT_FIT;
-    var now = E.hmpAt(S, week), start = E.DEFAULT_FIT.hmpSec, goal = E.GOAL.hmp;
-    var pct = Math.max(0, Math.min(100, Math.round((start - f.hmpSec) / (start - goal) * 100)));
-    return '<div class="card"><div class="row between"><h2 style="margin:0">Forma ta (semi)</h2><button class="btn sm ghost" onclick="A.openCalib()">Recalibrează</button></div>' +
-      '<div class="row" style="margin:12px 0 8px;align-items:flex-end"><div style="font-size:32px;font-weight:800;letter-spacing:-.02em">' + E.fmtTime(f.hmpSec * 21.0975) + '</div><div class="muted small" style="padding-bottom:5px">acum → <b>1:50:00</b> țintă</div></div>' +
-      '<div class="bar"><i style="width:' + pct + '%"></i></div><div class="tiny" style="margin-top:7px">Sursă: ' + esc(f.src) + '. Ritmurile din plan urmează forma asta și se strâng spre țintă cu ~1,4 s/km pe săptămână; testele le recalibrează.</div></div>';
+    var S = A.S, P = E.plan(), f = S.fitness || E.defaultFit();
+    var start = S.fitnessStart || E.defaultFit().hmpSec, goal = P.goal.hmp;
+    var pct = start > goal ? Math.max(0, Math.min(100, Math.round((start - f.hmpSec) / (start - goal) * 100))) : 100;
+    return '<div class="card"><div class="row between"><h2 style="margin:0">Forma ta (echivalent semi)</h2><button class="btn sm ghost" onclick="A.openCalib()">Recalibrează</button></div>' +
+      '<div class="row" style="margin:12px 0 8px;align-items:flex-end"><div style="font-size:32px;font-weight:800;letter-spacing:-.02em">' + E.fmtTime(f.hmpSec * 21.0975) + '</div><div class="muted small" style="padding-bottom:5px">acum → <b>' + E.fmtTime(goal * 21.0975) + '</b> țintă</div></div>' +
+      '<div class="bar"><i style="width:' + pct + '%"></i></div><div class="tiny" style="margin-top:7px">Sursă: ' + esc(f.src) + '. Ritmurile din plan urmează forma asta și se strâng spre țintă cu ~' + String(P.improve || E.IMPROVE_DEFAULT).replace('.', ',') + ' s/km pe săptămână; testele și cursele le recalibrează.</div></div>';
   }
 
   /* ================= PLAN ================= */
   function plan() {
     var S = A.S, t = A.todayISO(), w0 = E.weekOf(t), cur = E.clampWeek(w0), h = '';
-    h += head('Plan', '52 de săptămâni · luni, marți, vineri, duminică');
+    h += head('Plan', esc(E.plan().name) + ' · ' + E.nWeeks() + ' săptămâni') + planCard();
     var items = [], anyAdj = false;
-    for (var w = 1; w <= 52; w++) {
+    for (var w = 1; w <= E.nWeeks(); w++) {
       var ew = E.effectiveWeek(S, w), st = E.weekStats(S, w); if (ew.adjusted) anyAdj = true;
       items.push({ label: String(w), base: ew.baseTotal, plan: ew.total, act: st.actual, cur: w === cur && w0 >= 1 });
     }
@@ -176,19 +195,20 @@
       '<div class="legend"><span><i style="background:var(--accent)"></i>plan (curent)</span><span><i style="background:var(--ok)"></i>alergat</span><span><i style="background:var(--ink2)"></i>planul de bază, dacă a fost ajustat</span></div>' +
       '<div class="row" style="margin-top:12px;flex-wrap:wrap">' + (w0 >= 1 ? '<button class="btn sm" id="btn-adapt" onclick="A.adaptNow()">Adaptează planul acum</button>' : '') + (anyAdj ? '<button class="btn sm line" onclick="A.revertAll()">Revino la planul de bază</button>' : '') + '</div></div>';
     // ritmuri
-    var z = E.zones(S, cur);
+    var z = E.zones(S, cur), P = E.plan(), legacy = P.zones === 'legacy';
     h += '<div class="card"><div class="row between"><h2 style="margin:0">Ritmuri · săpt. ' + cur + '</h2><button class="btn sm ghost" onclick="A.openCalib()">Recalibrează</button></div>' +
       '<div class="kv" style="margin-top:12px"><div><b>' + E.paceText(S, cur, 'easy').replace('/km', '') + '</b><span>ușor / lung</span></div><div><b>' + E.paceText(S, cur, 'tempo').replace('/km', '') + '</b><span>tempo</span></div>' +
-      '<div><b>' + E.paceText(S, cur, 'interval').replace('/km', '') + '</b><span>intervale</span></div><div><b>' + E.fmtPace(z.hmp) + ' · ' + E.fmtPace(z.mp) + '</b><span>semi · maraton</span></div></div>' +
-      '<div class="tiny" style="margin-top:10px">Calculate de aplicație din forma ta curentă. Pentru țintă la cursă: semi 5:13, maraton 5:41.</div></div>';
+      '<div><b>' + E.paceText(S, cur, 'interval').replace('/km', '') + '</b><span>intervale</span></div>' +
+      (legacy ? '<div><b>' + E.fmtPace(z.hmp) + ' · ' + E.fmtPace(z.mp) + '</b><span>semi · maraton</span></div>' : '<div><b>' + E.fmtPace(z.rp) + '</b><span>ritm de cursă (azi)</span></div>') + '</div>' +
+      '<div class="tiny" style="margin-top:10px">' + (legacy ? 'Calculate de aplicație din forma ta curentă. Pentru țintă la cursă: semi 5:13, maraton 5:41.' : 'Calculate din forma ta curentă. Ținta la cursă: ' + esc(P.goal.label) + (P.goal.timeSec ? ' (' + E.fmtPace(P.goal.timeSec / P.goal.km) + '/km)' : '') + '.') + '</div></div>';
     // obiective
-    h += '<div class="card"><h2>Obiective și curse</h2>' + g.FIXED_PLAN.milestones.map(function (m) {
+    h += '<div class="card"><h2>Obiective și curse</h2>' + E.plan().milestones.map(function (m) {
       var left = E.dayDiff(E.parseISO(t), E.parseISO(m.date)), past = left < 0;
       return '<div class="row" style="padding:9px 0;border-top:1px solid var(--line);opacity:' + (past ? .5 : 1) + '"><div style="min-width:58px"><div class="bold" style="color:var(--accent)">' + E.parseISO(m.date).getDate() + ' ' + E.MONTHS[E.parseISO(m.date).getMonth()] + '</div><div class="tiny">' + (past ? 'trecut' : left === 0 ? 'azi' : left + ' zile') + '</div></div><div class="grow"><div class="bold">' + esc(m.label) + '</div><div class="small muted">' + esc(m.target) + '</div></div></div>';
     }).join('') + '</div>';
     // săptămâni
     h += '<div style="display:flex;flex-direction:column;gap:10px">';
-    for (var k = 1; k <= 52; k++) h += weekCard(k, cur, w0, t);
+    for (var k = 1; k <= E.nWeeks(); k++) h += weekCard(k, cur, w0, t);
     return h + '</div>';
   }
   function weekCard(w, cur, w0, t) {
@@ -202,7 +222,7 @@
     ew.sessions.forEach(function (s) {
       var x = status(s, t);
       h += '<div class="sess ' + (s.changed ? 'changed' : '') + '"><div class="d">' + A.DSHORT[s.day] + '<i>' + E.parseISO(s.date).getDate() + ' ' + E.MONTHS[E.parseISO(s.date).getMonth()] + '</i></div><div class="grow"><div class="t">' + esc(s.label) + (s.moved ? ' <span class="badge blue">mutat din ' + A.DSHORT[s.baseDay] + '</span>' : '') + (x.st === 'done' ? ' <span class="badge ok">făcut ' + A.fmtKm(x.km) + ' km</span>' : x.st === 'missed' && w0 >= 1 ? ' <span class="badge">ratat</span>' : '') + '</div>' +
-        '<div class="small muted">' + (s.pace ? '<b>' + esc(s.pace) + '</b> · ' : '') + esc(s.detail) + '</div>' + sessionExtras(S, w, s, x, t) + '</div><div class="km">' + A.fmtKm(s.km) + (s.changed ? '<div class="tiny" style="text-decoration:line-through">' + A.fmtKm(s.baseKm) + '</div>' : '') + '</div></div>';
+        '<div class="small muted">' + (s.pace ? '<b>' + esc(s.pace) + '</b> · ' : '') + esc(s.steps && !s.changed ? '' : s.detail) + '</div>' + stepsHtml(s.steps) + sessionExtras(S, w, s, x, t) + '</div><div class="km">' + A.fmtKm(s.km) + (s.changed ? '<div class="tiny" style="text-decoration:line-through">' + A.fmtKm(s.baseKm) + '</div>' : '') + '</div></div>';
     });
     return h + '</div></div>';
   }

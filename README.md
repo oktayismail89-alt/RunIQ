@@ -21,3 +21,6 @@ Antrenor de alergare personal (PWA, fără build). Țintă: semi ~1:50 (mai 2027
 `index.html`, `css/style.css`, `js/data.js` (plan), `js/engine.js` (logică pură), `js/weather.js` (vreme + sugestii), `js/ai.js` (Gemini), `js/core.js`, `js/views.js`, `js/actions.js`, `manifest.webmanifest`, `icon.svg`.
 
 Datele stau în `localStorage` (`runiq_v4`). La prima deschidere se importă alergările, greutatea, durerile și cheia din versiunea veche (`runiq_v3`, rămâne neatinsă).
+
+## Generator de planuri (orice țintă)
+Tab Plan → „Plan nou": distanță (5K/10K/semi/maraton/custom), dată, timp țintă (opțional), curse intermediare, formă actuală, zile, nivel. `js/planner.js` evaluează țintă vs. formă (verdict realist → nerealist, cu timp alternativ) și generează planul algoritmic: faze, descărcări, taper, teste de calibrare. Ritmurile se calculează din formă, nu din LLM; Gemini doar adaptează, validat de cod. Planul vechi se poate reveni din „Revino la planul anterior".

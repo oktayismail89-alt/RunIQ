@@ -41,7 +41,7 @@
   function val(id) { var e = $(id); return e ? e.value.trim() : ''; }
   function timeSec(s) { if (!s) return 0; if (s.indexOf(':') < 0) return Math.round(parseFloat(s.replace(',', '.')) * 60) || 0; return E.parseTime(s); }
   function raceKmFor(date) {
-    var w = E.weekOf(date); if (w < 1 || w > 52) return 0;
+    var w = E.weekOf(date); if (w < 1 || w > E.nWeeks()) return 0;
     var b = E.baseWeek(w).sessions.filter(function (s) { return E.sessionDate(w, s.day) === date && s.kind === 'race'; })[0];
     if (!b) return 0; var m = String(b.tpl).match(/(\d+(?:,\d+)?)\s*km/); return m ? parseFloat(m[1].replace(',', '.')) : 0;
   }
@@ -59,7 +59,7 @@
   }
   A.openLog = function (date) {
     var r = date ? { date: date, km: '', sec: 0, hr: '', cad: '', feel: 3, notes: '' } : null;
-    if (r) { var w = E.weekOf(date), s = w >= 1 && w <= 52 && E.effectiveWeek(A.S, w).sessions.filter(function (x) { return x.date === date; })[0]; if (s && s.kind !== 'rest') r.km = s.km; }
+    if (r) { var w = E.weekOf(date), s = w >= 1 && w <= E.nWeeks() && E.effectiveWeek(A.S, w).sessions.filter(function (x) { return x.date === date; })[0]; if (s && s.kind !== 'rest') r.km = s.km; }
     sheet(runForm(r, false) + '<div style="margin-top:18px"><button class="btn block" id="f-save" onclick="A.saveRun()">Salvează</button></div>');
   };
   function readForm() {
@@ -119,7 +119,7 @@
   /* ---------- recalibrare ---------- */
   A.openCalib = function (km, date) {
     var S = A.S, d = date || A.todayISO();
-    sheet('<h2>Recalibrează forma</h2><p class="muted small" style="margin-bottom:6px">Introdu un rezultat recent dintr-o cursă sau un test făcut la efort maxim. Ritmurile din plan se refac din el. Nu pot deveni mai rapide decât ținta (semi 5:13).</p>' +
+    sheet('<h2>Recalibrează forma</h2><p class="muted small" style="margin-bottom:6px">Introdu un rezultat recent dintr-o cursă sau un test făcut la efort maxim. Ritmurile din plan se refac din el. Nu pot deveni mai rapide decât ținta planului.</p>' +
       '<label>Distanța rezultatului</label><select id="c-km" onchange="A.calibPrev()"><option value="5">5 km</option><option value="10">10 km</option><option value="21.0975">Semimaraton</option><option value="42.195">Maraton</option></select>' +
       '<div class="g2"><div><label>Timp</label><input id="c-time" placeholder="ex. 29:30" oninput="A.calibPrev()"></div><div><label>Data</label><input type="date" id="c-date" value="' + d + '"></div></div>' +
       '<div id="c-prev" class="note info" style="margin-top:14px">Introdu timpul.</div>' +
@@ -129,16 +129,16 @@
   A.calibPrev = function () {
     var km = parseFloat($('c-km').value), sec = timeSec(val('c-time')), box = $('c-prev');
     if (!sec) { box.textContent = 'Introdu timpul.'; $('c-ok').disabled = true; return; }
-    var h = E.fitnessFromResult(km, sec), pv = A.S.fitness || E.DEFAULT_FIT;
-    var capped = h < E.GOAL.hmp;
-    box.innerHTML = 'Semi echivalent: <b>' + E.fmtTime(h * 21.0975) + '</b> (' + E.fmtPace(h) + '/km)' + (capped ? '<br>Mai rapid decât ținta, ritmurile se opresc la 5:13.' : '') + '<br>Înainte: ' + E.fmtTime(pv.hmpSec * 21.0975) + '. Ușor: ' + E.fmtPace(Math.max(h, E.GOAL.hmp) + 67) + '–' + E.fmtPace(Math.max(h, E.GOAL.hmp) + 107) + '/km.';
+    var h = E.fitnessFromResult(km, sec), pv = A.S.fitness || E.defaultFit();
+    var capped = h < E.goal().hmp;
+    box.innerHTML = 'Semi echivalent: <b>' + E.fmtTime(h * 21.0975) + '</b> (' + E.fmtPace(h) + '/km)' + (capped ? '<br>Mai rapid decât ținta, ritmurile se opresc la ritmul țintă.' : '') + '<br>Înainte: ' + E.fmtTime(pv.hmpSec * 21.0975) + '. Ușor: ' + E.fmtPace(Math.max(h, E.goal().hmp) + (E.plan().zones === 'legacy' ? 67 : 60)) + '–' + E.fmtPace(Math.max(h, E.goal().hmp) + (E.plan().zones === 'legacy' ? 107 : 100)) + '/km.';
     $('c-ok').disabled = false;
   };
   A.applyCalib = function () {
     var km = parseFloat($('c-km').value), sec = timeSec(val('c-time')), date = val('c-date') || A.todayISO();
     if (!sec) return;
     var h = E.fitnessFromResult(km, sec);
-    A.S.fitness = { hmpSec: Math.max(E.GOAL.hmp, h), week: E.clampWeek(E.weekOf(date)), src: (km < 15 ? Math.round(km) + ' km' : km < 30 ? 'semi' : 'maraton') + ' ' + E.fmtTime(sec) + ' (' + A.fmtDate(date) + ')' };
+    A.S.fitness = { hmpSec: Math.max(E.goal().hmp, h), week: E.clampWeek(E.weekOf(date)), src: (km < 15 ? Math.round(km) + ' km' : km < 30 ? 'semi' : 'maraton') + ' ' + E.fmtTime(sec) + ' (' + A.fmtDate(date) + ')' };
     A.save(); closeSheet(); render(); A.toast('Ritmuri recalibrate');
   };
   A.resetCalib = function () { A.S.fitness = null; A.save(); closeSheet(); render(); A.toast('Revenit la estimarea inițială'); };
@@ -271,9 +271,11 @@
   };
   A.resetAll = function () { if (!confirm('Ștergi toate datele (alergări, greutate, chat)? Cheia API rămâne.')) return; var k = A.S.apiKey; localStorage.removeItem('runiq_v4'); A.load(); A.S.apiKey = k; A.save(); closeSheet(); render(); };
 
+  A.sheet = sheet; A.val = val; A.timeSec = timeSec;
+
   /* ---------- pornire ---------- */
   async function autoAdapt() {
-    var t = A.todayISO(), w0 = E.weekOf(t); if (w0 < 2 || w0 > 52) return;
+    var t = A.todayISO(), w0 = E.weekOf(t); if (w0 < 2 || w0 > E.nWeeks()) return;
     var la = A.S.lastAdapt; if (la && la.week === w0) return;
     try { await AI.adapt(A.S, { reason: 'săptămână nouă (verificare automată)', today: t }); A.save(); render(true); } catch (e) { }
   }

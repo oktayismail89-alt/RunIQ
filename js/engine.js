@@ -2,14 +2,30 @@
    Gemini PROPUNE; tot ce ajunge în plan trece prin validate(). */
 (function (g) {
   'use strict';
-  var START = '2026-10-12';                       // luni, săptămâna 1
   var DAY_IDX = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
   var DAY_RO = { Mon: 'Luni', Tue: 'Marți', Wed: 'Miercuri', Thu: 'Joi', Fri: 'Vineri', Sat: 'Sâmbătă', Sun: 'Duminică' };
-  var RANK = { easy: 0, long: 0, hmp: 1, tempo: 2, interval: 3, race: 9, rest: -1 };
-  var KIND_RO = { easy: 'Alergare ușoară', long: 'Alergare lungă', tempo: 'Tempo', interval: 'Intervale', hmp: 'Ritm de semi', race: 'Cursă / test', rest: 'Odihnă' };
-  var GOAL = { hmp: 313, mp: 341 };               // 5:13/km = semi 1:50 ; 5:41/km = maraton 3:59:48
-  var DEFAULT_FIT = { hmpSec: 355, week: 1, src: 'estimare (semi 2:05 în primăvară, 5:56/km)' };
-  var IMPROVE_PER_WEEK = 1.4;                      // s/km pe săptămână, progresie realistă
+  var RANK = { easy: 0, long: 0, hmp: 1, rp: 1, tempo: 2, interval: 3, race: 9, rest: -1 };
+  var KIND_RO = { easy: 'Alergare ușoară', long: 'Alergare lungă', tempo: 'Tempo', interval: 'Intervale', hmp: 'Ritm de semi', rp: 'Ritm de cursă', race: 'Cursă / test', rest: 'Odihnă' };
+  var IMPROVE_DEFAULT = 1.4;                       // s/km pe săptămână, progresie realistă
+  var PLAN = null;                                  // planul activ (setat de usePlan)
+
+  /* planul inițial al lui Oktay rămâne ca presetare (zone "legacy", exact ca până acum) */
+  function presetPlan() {
+    return {
+      id: 'preset-oktay', name: 'Semi 1:50 + Maraton sub 4:00', start: '2026-10-12', zones: 'legacy', improve: IMPROVE_DEFAULT,
+      weeks: g.FIXED_PLAN.weeks, milestones: g.FIXED_PLAN.milestones,
+      goal: { label: 'Semi 1:50 (mai 2027) · Maraton sub 4:00 (10 oct 2027)', km: 42.195, timeSec: 14400, hmp: 313, mp: 341, raceDate: '2027-10-10', dist: 'm' },
+      defaultFit: { hmpSec: 355, week: 1, src: 'estimare (semi 2:05 în primăvară, 5:56/km)' },
+      coachContext: 'Oktay: revine după pauză din mai 2026, 75 kg, 170 cm, semi PB 1:57 (2023), semiuri de 2:05 în primăvara 2026. Obiective: semi ~1:50 (acceptabil 1:55) în mai 2027 și maraton sub 4:00 (acceptabil 4:15) pe 10 oct 2027.'
+    };
+  }
+  function setPlan(p) { PLAN = p; }
+  function usePlan(S) { PLAN = (S && S.plan) || presetPlan(); return PLAN; }
+  function plan() { return PLAN || usePlan(null); }
+  function nWeeks() { return plan().weeks.length; }
+  function startISO() { return plan().start; }
+  function goal() { return plan().goal; }
+  function defaultFit() { return plan().defaultFit; }
   var MIN_KM = 5;
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
@@ -18,13 +34,13 @@
   function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
   function dayDiff(a, b) { return Math.round((b - a) / 86400000); }
   function weekOf(dateISO) {
-    var w = Math.floor(dayDiff(parseISO(START), parseISO(dateISO)) / 7) + 1;
-    return w;                                      // poate fi <1 sau >52 (în afara planului)
+    var w = Math.floor(dayDiff(parseISO(plan().start), parseISO(dateISO)) / 7) + 1;
+    return w;                                      // poate fi <1 sau >nWeeks (în afara planului)
   }
-  function clampWeek(w) { return Math.max(1, Math.min(g.FIXED_PLAN.weeks.length, w)); }
-  function sessionDate(week, day) { return iso(addDays(parseISO(START), (week - 1) * 7 + DAY_IDX[day])); }
+  function clampWeek(w) { return Math.max(1, Math.min(nWeeks(), w)); }
+  function sessionDate(week, day) { return iso(addDays(parseISO(plan().start), (week - 1) * 7 + DAY_IDX[day])); }
   function weekRange(week) {
-    var a = addDays(parseISO(START), (week - 1) * 7), b = addDays(a, 6);
+    var a = addDays(parseISO(plan().start), (week - 1) * 7), b = addDays(a, 6);
     return a.getDate() + ' ' + MONTHS[a.getMonth()] + ' – ' + b.getDate() + ' ' + MONTHS[b.getMonth()];
   }
   var MONTHS = ['ian', 'feb', 'mar', 'apr', 'mai', 'iun', 'iul', 'aug', 'sep', 'oct', 'nov', 'dec'];
@@ -42,17 +58,24 @@
   function round05(x) { return Math.round(x * 2) / 2; }
 
   /* ---------- ritmuri: urmează forma ta reală, nu un tabel de obiective ---------- */
+  function riegelPace(hPace, km) { return hPace * Math.pow(km / 21.0975, 0.06); }   // ritm/km la distanța km, dat ritmul de semi
   function hmpAt(S, week) {
-    var f = S.fitness || DEFAULT_FIT;
-    var v = f.hmpSec - IMPROVE_PER_WEEK * Math.max(0, week - f.week);
-    return Math.max(GOAL.hmp, v);
+    var f = S.fitness || defaultFit(), P = plan();
+    var v = f.hmpSec - (P.improve || IMPROVE_DEFAULT) * Math.max(0, week - f.week);
+    return Math.max(P.goal.hmp, v);
+  }
+  function racePace(S, week) {              // ritm la distanța țintă, pe forma la acea săptămână
+    var h = hmpAt(S, week), km = plan().goal.km;
+    if (km >= 35) return Math.max(plan().goal.mp || 0, h * 1.085);
+    return riegelPace(h, km);
   }
   function zones(S, week) {
-    var h = hmpAt(S, week), easyLo = h + 67, easyHi = h + 107;
-    return {
-      hmp: h, mp: Math.max(GOAL.mp, h + 28),
-      easy: [easyLo, easyHi], tempo: [h + 22, h + 32], interval: [h - 3, h + 7]
-    };
+    var h = hmpAt(S, week), P = plan();
+    if (P.zones === 'legacy') {
+      return { hmp: h, mp: Math.max(P.goal.mp, h + 28), rp: h, easy: [h + 67, h + 107], tempo: [h + 22, h + 32], interval: [h - 3, h + 7] };
+    }
+    var p5 = riegelPace(h, 5), p10 = riegelPace(h, 10);
+    return { hmp: h, mp: h * 1.085, rp: racePace(S, week), p5k: p5, p10k: p10, easy: [h + 60, h + 100], tempo: [h - 8, h + 2], interval: [p5, p5 + 8] };
   }
   function range(a) { return fmtPace(a[0]) + '–' + fmtPace(a[1]); }
   function paceText(S, week, kind) {
@@ -61,20 +84,37 @@
     if (kind === 'tempo') return range(z.tempo) + '/km';
     if (kind === 'interval') return range(z.interval) + '/km';
     if (kind === 'hmp') return fmtPace(z.hmp) + '/km';
+    if (kind === 'rp') return fmtPace(z.rp) + '/km';
     return '';
+  }
+  function zoneText(S, week, zn) {           // pentru pașii structurați
+    var z = zones(S, week);
+    if (zn === 'strides') return 'rapid, relaxat';
+    if (zn === 'jog') return 'foarte lent';
+    if (zn === 'walk') return 'mers';
+    if (zn === 'mp') return fmtPace(z.mp) + '/km';
+    if (zn === 'hmp') return fmtPace(z.hmp) + '/km';
+    if (zn === 'rp') return fmtPace(z.rp) + '/km';
+    if (zn === 'p10k') return fmtPace(z.p10k || z.hmp) + '/km';
+    return paceText(S, week, zn);
   }
   // rezultat de test/cursă -> forma curentă (semi). Exponent mai prudent pentru distanțe scurte.
   function fitnessFromResult(km, sec) {
+    if (km >= 35) return sec / 2.18 / 21.0975;                // maraton ≈ 2,18 × semi la nivel recreațional
     var e = km < 7 ? 1.07 : 1.06;
-    var hm = sec * Math.pow(21.0975 / km, e);
-    return hm / 21.0975;
+    return sec * Math.pow(21.0975 / km, e) / 21.0975;
+  }
+  function timeFromHm(hmSec, km) {                              // invers: ritm de semi -> timp la distanța km
+    if (km >= 35) return hmSec * 21.0975 * 2.18 * (km / 42.195);
+    var e = km < 7 ? 1.07 : 1.06;
+    return hmSec * 21.0975 * Math.pow(km / 21.0975, e);
   }
 
   /* ---------- plan efectiv = bază + ajustări ---------- */
-  function baseWeek(w) { return g.FIXED_PLAN.weeks[clampWeek(w) - 1]; }
+  function baseWeek(w) { return plan().weeks[clampWeek(w) - 1]; }
   function fillTokens(S, week, t) {
     var z = zones(S, week);
-    return String(t || '').replace(/\{HMP\}/g, fmtPace(z.hmp)).replace(/\{MP\}/g, fmtPace(z.mp));
+    return String(t || '').replace(/\{HMP\}/g, fmtPace(z.hmp)).replace(/\{MP\}/g, fmtPace(z.mp)).replace(/\{RP\}/g, fmtPace(z.rp));
   }
   function describe(S, week, b, kind, km, note) {
     var tpl = fillTokens(S, week, b.tpl);
@@ -96,9 +136,10 @@
       var changed = !!a && (kind !== b.kind || km !== b.km);
       return {
         day: day, baseDay: b.day, moved: day !== b.day, date: sessionDate(w, day), kind: kind, km: km, baseKm: b.km, baseKind: b.kind, changed: changed,
-        label: b.kind === 'race' ? b.type : KIND_RO[kind],
+        label: b.kind === 'race' ? b.type : (b.label && kind === b.kind ? b.label : KIND_RO[kind]),
         pace: b.kind === 'race' ? fillTokens(S, w, b.pt || '') : paceText(S, w, kind),
-        detail: describe(S, w, b, kind, km, changed && a.note ? a.note : '')
+        detail: describe(S, w, b, kind, km, changed && a.note ? a.note : ''),
+        steps: b.steps && !changed ? b.steps.map(function (st) { return { t: st.t, n: st.n || 1, d: st.d, u: st.u, z: st.z, label: st.label || '', pace: zoneText(S, w, st.z), rec: st.rec ? { d: st.rec.d, u: st.rec.u, z: st.rec.z, pace: zoneText(S, w, st.rec.z) } : null }; }) : null
       };
     });
     sessions.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
@@ -253,10 +294,11 @@
   }
 
   g.RunEngine = {
-    START: START, DAY_RO: DAY_RO, KIND_RO: KIND_RO, GOAL: GOAL, DEFAULT_FIT: DEFAULT_FIT, MIN_KM: MIN_KM,
+    DAY_RO: DAY_RO, KIND_RO: KIND_RO, MIN_KM: MIN_KM, IMPROVE_DEFAULT: IMPROVE_DEFAULT,
+    presetPlan: presetPlan, setPlan: setPlan, usePlan: usePlan, plan: plan, nWeeks: nWeeks, startISO: startISO, goal: goal, defaultFit: defaultFit,
     iso: iso, parseISO: parseISO, addDays: addDays, dayDiff: dayDiff, weekOf: weekOf, clampWeek: clampWeek, sessionDate: sessionDate,
-    weekRange: weekRange, fmtPace: fmtPace, fmtTime: fmtTime, parseTime: parseTime, MONTHS: MONTHS,
-    hmpAt: hmpAt, zones: zones, paceText: paceText, fitnessFromResult: fitnessFromResult,
+    weekRange: weekRange, fmtPace: fmtPace, fmtTime: fmtTime, parseTime: parseTime, MONTHS: MONTHS, riegelPace: riegelPace,
+    hmpAt: hmpAt, racePace: racePace, timeFromHm: timeFromHm, zones: zones, paceText: paceText, zoneText: zoneText, fitnessFromResult: fitnessFromResult,
     baseWeek: baseWeek, effectiveWeek: effectiveWeek, runsInWeek: runsInWeek, weekStats: weekStats, lastRuns: lastRuns,
     ctxFor: ctxFor, validate: validate, fillTokens: fillTokens, validateMove: validateMove, freeDays: freeDays, applyMove: applyMove, undoMove: undoMove, cleanup: cleanup, isHard: isHard, DAY_IDX: DAY_IDX
   };

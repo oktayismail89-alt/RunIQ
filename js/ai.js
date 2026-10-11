@@ -55,7 +55,7 @@
   function paceStr(r) { return r.sec > 0 && r.km > 0 ? E.fmtPace(r.sec / r.km) + '/km' : null; }
   function zonesText(S, w) {
     var z = E.zones(S, w);
-    return { easy: E.paceText(S, w, 'easy'), tempo: E.paceText(S, w, 'tempo'), interval: E.paceText(S, w, 'interval'), halfMarathonPace: E.fmtPace(z.hmp) + '/km', marathonPace: E.fmtPace(z.mp) + '/km' };
+    return { easy: E.paceText(S, w, 'easy'), tempo: E.paceText(S, w, 'tempo'), interval: E.paceText(S, w, 'interval'), halfMarathonPace: E.fmtPace(z.hmp) + '/km', marathonPace: E.fmtPace(z.mp) + '/km', goalRacePace: E.fmtPace(z.rp) + '/km' };
   }
   function weekBrief(S, w, ctx) {
     var ew = E.effectiveWeek(S, w), bw = E.baseWeek(w);
@@ -76,13 +76,13 @@
       today: today, currentWeek: week, ctx: ctx,
       payload: {
         today: today, currentWeek: week,
-        goals: { halfMarathon: '1:50 (acceptabil 1:55), mai 2027', marathon: 'sub 4:00 (acceptabil 4:15), 10 oct 2027' },
-        runner: { age: 'adult', weightKg: (S.body && S.body.length ? S.body[S.body.length - 1].kg : 75), heightCm: 170, halfMarathonPB: '1:57 (2023)', springHalfs: '2:05 (2026)', lastRunBeforePlan: 'mai 2026' },
-        fitnessNow: { halfMarathonPace: E.fmtPace(E.hmpAt(S, week)) + '/km', source: (S.fitness || E.DEFAULT_FIT).src },
+        goal: E.plan().goal.label, planName: E.plan().name, planWeeks: E.nWeeks(), raceDate: E.plan().goal.raceDate,
+        runner: { weightKg: (S.body && S.body.length ? S.body[S.body.length - 1].kg : null) },
+        fitnessNow: { halfMarathonPace: E.fmtPace(E.hmpAt(S, week)) + '/km', source: (S.fitness || E.defaultFit()).src },
         paceZonesComputedByApp: zonesText(S, week),
         thisWeek: weekBrief(S, week, ctx),
         thisWeekProgress: { actualKm: cur.actual, runsLogged: cur.count },
-        nextWeek: week < 52 ? weekBrief(S, week + 1, ctx) : null,
+        nextWeek: week < E.nWeeks() ? weekBrief(S, week + 1, ctx) : null,
         recentWeeks: rw,
         lastRuns: E.lastRuns(S, 6).map(function (r) { return { date: r.date, km: r.km, pace: paceStr(r), hr: r.hr || null, feel1to5: r.feel, notes: r.notes || '' }; }),
         activeNiggles: (S.niggles || []).filter(function (n) { return n.active; }).map(function (n) { return { area: n.area, severity1to3: n.sev, notes: n.notes }; }),
@@ -92,15 +92,15 @@
     };
   }
 
-  var ADAPT_SYSTEM =
-    'Ești antrenorul de alergare al lui Oktay (maraton sub 4:00 pe 10 oct 2027, semi ~1:50 în mai 2027). Răspunzi în română, direct, fără laude de complezență.\n' +
-    'EXISTĂ un plan de bază de 52 de săptămâni, scris de antrenor. NU scrii planuri noi. Poți doar să-l ajustezi pentru săptămâna curentă și cea următoare, în limitele de mai jos. Codul aplicației verifică tot și corectează orice încalcă regulile.\n' +
-    'REGULI DURE: (1) zilele sunt fixe (cele din plan); (2) minim 5 km pe alergare; (3) nu depăși kilometrii din planul de bază; (4) nu crește intensitatea (ordinea: easy < hmp < tempo < interval); (5) "rest" doar dacă există o durere activă de nivel ≥2; (6) sesiunile cu locked:true nu se modifică; (7) NU inventa ritmuri: ritmurile le calculează aplicația, tu nu scrii numere de ritm.\n' +
-    'FILOZOFIE: ești prudent. Revine după 5 luni de pauză, 75 kg. Dacă a alergat mult sub plan, nu-l grăbi să recupereze; dacă a alergat prea repede la ușor sau efortul e 4-5/5, simplifică sesiunile de calitate. Dacă totul merge conform planului, lasă planul NESCHIMBAT (liste goale). A nu schimba nimic e un răspuns bun.\n' +
+  function adaptSystem() { var P = E.plan(); return (
+    'Ești antrenorul de alergare al utilizatorului. CONTEXT: ' + P.coachContext + ' Răspunzi în română, direct, fără laude de complezență.\n' +
+    'EXISTĂ un plan de bază de ' + E.nWeeks() + ' săptămâni, generat de aplicație. NU scrii planuri noi. Poți doar să-l ajustezi pentru săptămâna curentă și cea următoare, în limitele de mai jos. Codul aplicației verifică tot și corectează orice încalcă regulile.\n' +
+    'REGULI DURE: (1) zilele sunt fixe (cele din plan); (2) minim 5 km pe alergare; (3) nu depăși kilometrii din planul de bază; (4) nu crește intensitatea (ordinea: easy < hmp/rp < tempo < interval); (5) "rest" doar dacă există o durere activă de nivel ≥2; (6) sesiunile cu locked:true nu se modifică; (7) NU inventa ritmuri: ritmurile le calculează aplicația, tu nu scrii numere de ritm.\n' +
+    'FILOZOFIE: ești prudent. Dacă a alergat mult sub plan, nu-l grăbi să recupereze; dacă a alergat prea repede la ușor sau efortul e 4-5/5, simplifică sesiunile de calitate. Dacă totul merge conform planului, lasă planul NESCHIMBAT (liste goale). A nu schimba nimic e un răspuns bun.\n' +
     'VREME: în DATE există prognoza (Open-Meteo) și sugestiile de mutare calculate de aplicație. Nu inventa prognoze. Dacă o sesiune apropiată are probleme (ploaie, vânt, caniculă), spune-o în "assessment" într-o propoziție și menționează sugestia aplicației; mutările le face utilizatorul din buton, nu le pui tu în JSON.\n' +
     'Dacă ritmul real pe alergările ușoare e semnificativ mai lent decât zona ușoară sau pulsul/efortul sunt mari constant, poți cere hmpShiftSec (0–30, doar mai lent): forma lui actuală e mai slabă decât presupune aplicația. Nu cere niciodată mai rapid.\n' +
     'Răspunde DOAR cu JSON: {"runFeedback":"2-3 propoziții despre alergarea tocmai înregistrată (sau gol dacă nu există)","assessment":"2-4 propoziții: cum merge antrenamentul și ce ai ajustat și de ce","weeks":[{"week":N,"note":"motiv scurt","sessions":[{"day":"Tue","kind":"easy","km":6}]}],"hmpShiftSec":0,"alert":"avertisment (durere, supra-antrenament) sau gol"}. ' +
-    'În "weeks" pui DOAR săptămânile pe care le modifici, iar la "sessions" doar zilele modificate. Dacă nu modifici nimic: "weeks":[].';
+    'În "weeks" pui DOAR săptămânile pe care le modifici, iar la "sessions" doar zilele modificate. Dacă nu modifici nimic: "weeks":[].'); }
 
   async function adapt(S, opts) {
     opts = opts || {};
@@ -108,7 +108,7 @@
     var w0 = E.weekOf(today);
     var week = E.clampWeek(w0);
     var result = { assessment: '', runFeedback: '', alert: '', changes: [], source: 'reguli', error: '' };
-    var weeks = [week].concat(week < 52 ? [week + 1] : []);
+    var weeks = [week].concat(week < E.nWeeks() ? [week + 1] : []);
     var ai = null;
     try { if (g.RunWeather) await g.RunWeather.refresh(S); } catch (e) { }
     if (w0 < 1) { result.assessment = 'Planul începe luni, 12 octombrie. Până atunci nu e nimic de ajustat.'; return result; }
@@ -116,7 +116,7 @@
       try {
         var c = context(S, week, today);
         var user = 'DATE:\n' + JSON.stringify(c.payload) + (opts.run ? '\n\nALERGAREA TOCMAI ÎNREGISTRATĂ: ' + JSON.stringify({ date: opts.run.date, km: opts.run.km, pace: paceStr(opts.run), hr: opts.run.hr || null, cadence: opts.run.cad || null, feel1to5: opts.run.feel, notes: opts.run.notes || '' }) : '') + '\n\nMOTIV: ' + (opts.reason || 'verificare') + '.';
-        ai = parseJSON(await gemini(S, { models: MODELS_ADAPT, system: ADAPT_SYSTEM, user: user, json: true, maxTokens: 2200, thinking: 1024, temperature: 0.25 }));
+        ai = parseJSON(await gemini(S, { models: MODELS_ADAPT, system: adaptSystem(), user: user, json: true, maxTokens: 2200, thinking: 1024, temperature: 0.25 }));
         result.source = 'gemini';
       } catch (e) { result.error = e.message; }
     }
@@ -145,17 +145,17 @@
     return result;
   }
 
-  var CHAT_SYSTEM =
-    'Ești antrenorul de alergare al lui Oktay. Răspunzi în română, concis și direct, fără laude goale. Obiective: semi ~1:50 (mai 2027), maraton sub 4:00 (10 oct 2027). ' +
-    'Planul de bază de 52 de săptămâni e dat; din chat NU poți modifica planul. Dacă recomanzi o schimbare, spune-i să apese "Adaptează planul" în tab-ul Plan. ' +
+  function chatSystem() { var P = E.plan(); return (
+    'Ești antrenorul de alergare al utilizatorului. CONTEXT: ' + P.coachContext + ' Răspunzi în română, concis și direct, fără laude goale. ' +
+    'Planul de bază de ' + E.nWeeks() + ' săptămâni e dat; din chat NU poți modifica planul. Dacă recomanzi o schimbare, spune-i să apese "Adaptează planul" în tab-ul Plan. ' +
     'Nu inventa ritmuri: folosește doar zonele din date. La durere care schimbă mersul sau alergarea: odihnă și medic. Nu emite diagnostice. ' +
     'Ai acces la căutare web: folosește-o pentru informații actuale sau verificabile (date de curse, trasee, program, știri). Pentru vreme folosește prognoza din DATE (Open-Meteo), nu o căuta. ' +
-    'Dacă recomanzi mutarea unei alergări din cauza vremii, spune ce zi alegi și de ce; utilizatorul apasă "Mută" în aplicație. Nu confirma o dată de cursă fără sursă.';
+    'Dacă recomanzi mutarea unei alergări din cauza vremii, spune ce zi alegi și de ce; utilizatorul apasă "Mută" în aplicație. Nu confirma o dată de cursă fără sursă.'); }
 
   async function chat(S, history, text, today) {
     var week = E.clampWeek(E.weekOf(today));
     var c = context(S, week, today);
-    var sys = CHAT_SYSTEM + '\nDATE ACTUALE: ' + JSON.stringify(c.payload);
+    var sys = chatSystem() + '\nDATE ACTUALE: ' + JSON.stringify(c.payload);
     var contents = history.slice(-10).map(function (m) { return { role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.text }] }; });
     contents.push({ role: 'user', parts: [{ text: text }] });
     var sources = [];
