@@ -12,11 +12,11 @@
   /* planul inițial al lui Oktay rămâne ca presetare (zone "legacy", exact ca până acum) */
   function presetPlan() {
     return {
-      id: 'preset-oktay', name: 'Semi 1:50 + Maraton sub 4:00', start: '2026-10-12', zones: 'legacy', improve: IMPROVE_DEFAULT,
+      id: 'preset-oktay', name: 'Semi 1:50 + Maraton sub 4:00', start: '2026-10-12', zones: 'std', improve: 2.0,
       weeks: g.FIXED_PLAN.weeks, milestones: g.FIXED_PLAN.milestones,
       goal: { label: 'Semi 1:50 (mai 2027) · Maraton sub 4:00 (10 oct 2027)', km: 42.195, timeSec: 14400, hmp: 313, mp: 341, raceDate: '2027-10-10', dist: 'm' },
-      defaultFit: { hmpSec: 355, week: 1, src: 'estimare (semi 2:05 în primăvară, 5:56/km)' },
-      coachContext: 'Oktay: revine după pauză din mai 2026, 75 kg, 170 cm, semi PB 1:57 (2023), semiuri de 2:05 în primăvara 2026. Obiective: semi ~1:50 (acceptabil 1:55) în mai 2027 și maraton sub 4:00 (acceptabil 4:15) pe 10 oct 2027.'
+      defaultFit: { hmpSec: 370, week: 1, src: 'estimare după pauză (~6:10/km, semi ~2:10); testul de 5 km din săptămâna 7 o corectează' },
+      coachContext: 'Oktay: 170 cm, ~75 kg (țintă 70 kg până pe 31 dec. 2026). Istoric Garmin: semi PB 1:57:45 (oct. 2023), 1:59:26 (mai 2023), 2:05:01 (10 mai 2026); 5 km ~26:00 și 10 km 54:39 în 2023. Cea mai bună săptămână din istoric: 44,7 km; consecvența e punctul slab (după fiecare semi de mai se oprește 3–4 luni). Revine după pauză: doar 2 alergări în septembrie 2026, ritm de semi estimat ~6:10–6:20. Ținta lui este semi 1:50 în mai 2027 (își dorește explicit 1:50, are nevoie de țintă mare; pragurile de control din plan contează) și maraton sub 4:00 pe 10 oct 2027. Nu-l descuraja în legătură cu ținta; fii onest cu progresul față de praguri. Reguli: minim 3 alergări/săpt., nu ratează două la rând, nu se oprește vara.'
     };
   }
   function setPlan(p) { PLAN = p; }
@@ -293,6 +293,15 @@
     return { sessions: out, problems: problems, total: t, sameAsBase: same, maxTotal: Math.round(maxTotal * 10) / 10 };
   }
 
+
+  /* ---------- praguri de control (verde / galben / roșu) ---------- */
+  function gateVerdict(S, m, today) {
+    if (!m || !m.gate) return null;
+    var r = (S.gates || {})[m.date], gt = m.gate;
+    if (r && r.sec > 0) return { state: r.sec <= gt.green ? 'green' : r.sec <= gt.yellow ? 'yellow' : 'red', sec: r.sec, gate: gt };
+    return { state: m.date < today ? 'missing' : 'pending', gate: gt };
+  }
+
   g.RunEngine = {
     DAY_RO: DAY_RO, KIND_RO: KIND_RO, MIN_KM: MIN_KM, IMPROVE_DEFAULT: IMPROVE_DEFAULT,
     presetPlan: presetPlan, setPlan: setPlan, usePlan: usePlan, plan: plan, nWeeks: nWeeks, startISO: startISO, goal: goal, defaultFit: defaultFit,
@@ -300,6 +309,6 @@
     weekRange: weekRange, fmtPace: fmtPace, fmtTime: fmtTime, parseTime: parseTime, MONTHS: MONTHS, riegelPace: riegelPace,
     hmpAt: hmpAt, racePace: racePace, timeFromHm: timeFromHm, zones: zones, paceText: paceText, zoneText: zoneText, fitnessFromResult: fitnessFromResult,
     baseWeek: baseWeek, effectiveWeek: effectiveWeek, runsInWeek: runsInWeek, weekStats: weekStats, lastRuns: lastRuns,
-    ctxFor: ctxFor, validate: validate, fillTokens: fillTokens, validateMove: validateMove, freeDays: freeDays, applyMove: applyMove, undoMove: undoMove, cleanup: cleanup, isHard: isHard, DAY_IDX: DAY_IDX
+    ctxFor: ctxFor, validate: validate, fillTokens: fillTokens, validateMove: validateMove, freeDays: freeDays, applyMove: applyMove, undoMove: undoMove, cleanup: cleanup, isHard: isHard, DAY_IDX: DAY_IDX, gateVerdict: gateVerdict
   };
 })(typeof window !== 'undefined' ? window : globalThis);

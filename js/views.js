@@ -203,8 +203,13 @@
       '<div class="tiny" style="margin-top:10px">' + (legacy ? 'Calculate de aplicație din forma ta curentă. Pentru țintă la cursă: semi 5:13, maraton 5:41.' : 'Calculate din forma ta curentă. Ținta la cursă: ' + esc(P.goal.label) + (P.goal.timeSec ? ' (' + E.fmtPace(P.goal.timeSec / P.goal.km) + '/km)' : '') + '.') + '</div></div>';
     // obiective
     h += '<div class="card"><h2>Obiective și curse</h2>' + E.plan().milestones.map(function (m) {
-      var left = E.dayDiff(E.parseISO(t), E.parseISO(m.date)), past = left < 0;
-      return '<div class="row" style="padding:9px 0;border-top:1px solid var(--line);opacity:' + (past ? .5 : 1) + '"><div style="min-width:58px"><div class="bold" style="color:var(--accent)">' + E.parseISO(m.date).getDate() + ' ' + E.MONTHS[E.parseISO(m.date).getMonth()] + '</div><div class="tiny">' + (past ? 'trecut' : left === 0 ? 'azi' : left + ' zile') + '</div></div><div class="grow"><div class="bold">' + esc(m.label) + '</div><div class="small muted">' + esc(m.target) + '</div></div></div>';
+      var left = E.dayDiff(E.parseISO(t), E.parseISO(m.date)), past = left < 0, gv = E.gateVerdict(S, m, t), badge = '';
+      if (gv) {
+        var lbl = { green: 'Verde', yellow: 'Galben', red: 'În urmă' }[gv.state];
+        if (lbl) badge = '<span class="badge ' + { green: 'ok', yellow: 'warn', red: 'bad' }[gv.state] + '">' + lbl + ' · ' + E.fmtTime(gv.sec) + '</span> ';
+        if (left <= 1) badge += '<button class="btn sm ghost" onclick="A.openGate(\'' + m.date + '\')">' + (gv.sec ? 'Schimbă' : 'Rezultat') + '</button>';
+      }
+      return '<div class="row" style="padding:9px 0;border-top:1px solid var(--line);opacity:' + (past && !(gv && gv.sec) && !gv ? .5 : 1) + '"><div style="min-width:58px"><div class="bold" style="color:var(--accent)">' + E.parseISO(m.date).getDate() + ' ' + E.MONTHS[E.parseISO(m.date).getMonth()] + '</div><div class="tiny">' + (past ? 'trecut' : left === 0 ? 'azi' : left + ' zile') + '</div></div><div class="grow"><div class="bold">' + esc(m.label) + '</div><div class="small muted">' + esc(m.target) + '</div>' + (badge ? '<div style="margin-top:6px">' + badge + '</div>' : '') + '</div></div>';
     }).join('') + '</div>';
     // săptămâni
     h += '<div style="display:flex;flex-direction:column;gap:10px">';
@@ -247,6 +252,19 @@
     var paced = rs.filter(function (r) { return r.sec > 0 && r.km >= 3; });
     var ap = paced.length ? paced.reduce(function (s, r) { return s + r.sec / r.km; }, 0) / paced.length : 0;
     h += '<div class="kv"><div><b>' + A.fmtKm(tot) + ' km</b><span>total din 12 oct</span></div><div><b>' + rs.length + '</b><span>alergări</span></div><div><b>' + (ap ? E.fmtPace(ap) : '–') + '</b><span>ritm mediu</span></div><div><b>' + (S.body.length ? S.body[S.body.length - 1].kg + ' kg' : '–') + '</b><span>greutate</span></div></div>';
+
+    // istoric Garmin
+    var hs = S.history && g.RunHistory ? g.RunHistory.stats(S.history, t) : null;
+    if (hs) {
+      var ft = function (x) { return x ? E.fmtTime(x.sec) + ' · ' + E.parseISO(x.date).getFullYear() : '–'; };
+      h += '<div class="card"><div class="row between"><h2 style="margin:0">Istoric Garmin</h2><button class="btn sm ghost" onclick="A.clearHistory()">Șterge</button></div>' +
+        '<div class="kv" style="margin-top:12px"><div><b>' + ft(hs.bestHm) + '</b><span>cel mai bun semi</span></div><div><b>' + ft(hs.best10k) + '</b><span>cel mai bun 10 km (estimat)</span></div>' +
+        '<div><b>' + A.fmtKm(hs.peakWeek.km) + ' km</b><span>cea mai bună săptămână</span></div><div><b>' + hs.weeks3in52 + ' / 52</b><span>săptămâni cu 3+ alergări (ultimul an)</span></div></div>' +
+        '<div class="hscroll" style="margin-top:10px">' + A.volumeChart(hs.months.map(function (m) { return { label: E.MONTHS[m.m], plan: m.km }; }), { every: 2, bw: 14, h: 120 }) + '</div>' +
+        '<div class="tiny">Kilometri pe lună, ultimii 2 ani. Ultima alergare din export: ' + A.fmtDate(hs.last) + '. Planul cere în vârf ~' + Math.round(E.plan().weeks.reduce(function (m, w) { return Math.max(m, w.sessions.reduce(function (a, s) { return a + s.km; }, 0)); }, 0)) + ' km/săpt. față de recordul tău de ' + A.fmtKm(hs.peakWeek.km) + '.</div></div>';
+    } else {
+      h += '<div class="card"><h2>Istoric Garmin</h2><div class="small muted">Importă exportul Activities.csv din Garmin Connect (o singură dată). Vezi recordurile, volumul și consecvența, iar coach-ul le folosește.</div><div style="margin-top:12px"><label class="btn sm" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px">Alege fișierul CSV<input type="file" accept=".csv,text/csv" style="display:none" onchange="A.importHistory(this)"></label></div></div>';
+    }
     var items = [], pts = [];
     for (var w = 1; w <= cur && w0 >= 1; w++) {
       var st = E.weekStats(S, w), ew = E.effectiveWeek(S, w);

@@ -143,6 +143,42 @@
   };
   A.resetCalib = function () { A.S.fitness = null; A.save(); closeSheet(); render(); A.toast('Revenit la estimarea inițială'); };
 
+
+
+  /* ---------- istoric Garmin (CSV, o singură dată) ---------- */
+  A.importHistory = function (inp) {
+    var f = inp.files[0]; if (!f) return; var rd = new FileReader();
+    rd.onload = function () {
+      try {
+        var h = g.RunHistory.parseGarmin(String(rd.result));
+        if (!h.length) throw new Error('nicio alergare găsită');
+        A.S.history = h; A.save(); closeSheet(); render(true);
+        A.toast('Importat: ' + h.length + ' alergări (' + h[0].d.slice(0, 4) + '–' + h[h.length - 1].d.slice(0, 4) + ')');
+      } catch (e) { A.toast('Import eșuat: ' + e.message); }
+    };
+    rd.readAsText(f);
+  };
+  A.clearHistory = function () { if (!confirm('Ștergi istoricul importat?')) return; delete A.S.history; A.save(); render(true); };
+
+  /* ---------- praguri de control ---------- */
+  A.openGate = function (date) {
+    var m = E.plan().milestones.filter(function (x) { return x.date === date; })[0]; if (!m || !m.gate) return;
+    var r = (A.S.gates || {})[date], gt = m.gate;
+    sheet('<h2>' + esc(m.label) + '</h2><p class="muted small" style="margin-bottom:6px">Verde ≤ ' + E.fmtTime(gt.green) + ' · galben ≤ ' + E.fmtTime(gt.yellow) + '. Introdu timpul oficial sau al testului (fără încălzire).</p>' +
+      '<label>Timp</label><input id="g-time" placeholder="ex. 28:10" value="' + (r ? E.fmtTime(r.sec) : '') + '">' +
+      '<label style="display:flex;gap:8px;align-items:center;margin-top:14px;text-transform:none;letter-spacing:0;font-size:14px"><input type="checkbox" id="g-cal" checked style="width:auto"> Recalibrează ritmurile din acest rezultat</label>' +
+      '<div class="row" style="margin-top:16px"><button class="btn grow" onclick="A.saveGate(\'' + date + '\')">Salvează</button><button class="btn ghost" onclick="A.closeSheet()">Anulează</button></div>');
+  };
+  A.saveGate = function (date) {
+    var m = E.plan().milestones.filter(function (x) { return x.date === date; })[0]; if (!m || !m.gate) return;
+    var sec = timeSec(val('g-time')); if (!sec) { A.toast('Introdu timpul'); return; }
+    var S = A.S; S.gates = S.gates || {}; S.gates[date] = { sec: sec, ts: Date.now() };
+    if ($('g-cal').checked) { var h = E.fitnessFromResult(m.gate.km, sec); S.fitness = { hmpSec: Math.max(E.goal().hmp, h), week: E.clampWeek(E.weekOf(date)), src: m.label + ' ' + E.fmtTime(sec) + ' (' + A.fmtDate(date) + ')' }; }
+    A.save(); closeSheet(); render(true);
+    var v = E.gateVerdict(S, m, A.todayISO());
+    A.toast(v.state === 'green' ? 'Verde: ești pe drum spre 1:50' : v.state === 'yellow' ? 'Galben: aproape; ținta rămâne, ritmurile s-au recalibrat' : 'În urmă; ținta rămâne, ritmurile reflectă ce poți acum');
+  };
+
   /* ---------- adaptare ---------- */
   A.adaptNow = async function () {
     if (busy) return; busy = true;
@@ -251,7 +287,7 @@
     sheet('<h2>Setări</h2><label>Cheie API Gemini</label><input id="s-key" type="password" autocomplete="off" placeholder="AIza…" value="' + esc(S.apiKey || '') + '"><div class="tiny" style="margin-top:5px">Se păstrează doar în acest browser. Obține una gratuit din Google AI Studio.</div>' +
       '<div class="row" style="margin-top:12px"><button class="btn grow" onclick="A.saveKey()">Salvează cheia</button><button class="btn ghost" onclick="A.testKey()">Testează</button></div><div class="tiny" id="s-st" style="margin-top:8px"></div>' +
       '<label>Locație pentru vreme</label><div class="row"><input id="s-city" placeholder="' + esc((S.loc || g.RunWeather.DEF).name) + '"><button class="btn sm ghost" onclick="A.searchCity()">Caută</button></div><div class="tiny" id="s-city-res" style="margin-top:6px">Acum: ' + esc((S.loc || g.RunWeather.DEF).name) + '. Prognoza vine de la Open-Meteo.</div>' +
-      '<label>Date</label><div class="row" style="flex-wrap:wrap"><button class="btn sm ghost" onclick="A.exportData()">Exportă JSON</button><label class="btn sm ghost" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)">Importă<input type="file" accept="application/json" style="display:none" onchange="A.importData(this)"></label><button class="btn sm danger" onclick="A.resetAll()">Șterge tot</button></div>' +
+      '<label>Date</label><div class="row" style="flex-wrap:wrap"><button class="btn sm ghost" onclick="A.exportData()">Exportă JSON</button><label class="btn sm ghost" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)">Importă<input type="file" accept="application/json" style="display:none" onchange="A.importData(this)"></label><label class="btn sm ghost" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)">Istoric Garmin (CSV)<input type="file" accept=".csv,text/csv" style="display:none" onchange="A.importHistory(this)"></label><button class="btn sm danger" onclick="A.resetAll()">Șterge tot</button></div>' +
       '<div class="tiny" style="margin-top:16px">RunIQ 4.0 · plan de bază fix, ajustat de Gemini în limite validate în cod.</div>');
   };
   A.saveKey = function () { A.S.apiKey = val('s-key'); A.save(); $('s-st').textContent = 'Salvat.'; render(true); };

@@ -86,6 +86,8 @@
         recentWeeks: rw,
         lastRuns: E.lastRuns(S, 6).map(function (r) { return { date: r.date, km: r.km, pace: paceStr(r), hr: r.hr || null, feel1to5: r.feel, notes: r.notes || '' }; }),
         activeNiggles: (S.niggles || []).filter(function (n) { return n.active; }).map(function (n) { return { area: n.area, severity1to3: n.sev, notes: n.notes }; }),
+        history: (function () { var hs = S.history && g.RunHistory ? g.RunHistory.stats(S.history, today) : null; return hs ? { bestHalf: hs.bestHm ? E.fmtTime(hs.bestHm.sec) + ' (' + hs.bestHm.date + ')' : null, peakWeekKm: Math.round(hs.peakWeek.km), weeksWith3plusRunsLastYear: hs.weeks3in52, kmLastYear: hs.km52, lastRunInExport: hs.last } : null; })(),
+        controlGates: E.plan().milestones.filter(function (m) { return m.gate && m.date <= today; }).map(function (m) { var v = E.gateVerdict(S, m, today); return { date: m.date, label: m.label, verdict: v.state, result: v.sec ? E.fmtTime(v.sec) : null, green: E.fmtTime(m.gate.green) }; }),
         weather: g.RunWeather ? g.RunWeather.forAI(S, today) : null,
         computedFlags: { ahead: ctx.ahead, avgFeelLast3: ctx.feelAvg ? +ctx.feelAvg.toFixed(1) : null, maxNiggleSeverity: ctx.niggleSev }
       }

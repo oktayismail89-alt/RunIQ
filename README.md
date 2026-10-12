@@ -24,3 +24,6 @@ Datele stau în `localStorage` (`runiq_v4`). La prima deschidere se importă ale
 
 ## Generator de planuri (orice țintă)
 Tab Plan → „Plan nou": distanță (5K/10K/semi/maraton/custom), dată, timp țintă (opțional), curse intermediare, formă actuală, zile, nivel. `js/planner.js` evaluează țintă vs. formă (verdict realist → nerealist, cu timp alternativ) și generează planul algoritmic: faze, descărcări, taper, teste de calibrare. Ritmurile se calculează din formă, nu din LLM; Gemini doar adaptează, validat de cod. Planul vechi se poate reveni din „Revino la planul anterior".
+
+## Preset-ul Oktay (octombrie 2026)
+Zone standard (tempo = ritm de semi −8..+2 s/km, intervale la ritm de 5K), ancoră provizorie 6:10/km (semi ~2:10) până la primul test, progres planificat 2,0 s/km pe săptămână spre ținta de 1:50. Primele tempo-uri în săptămânile 6 și 8. Pragurile de control (verde/galben/roșu) din „Obiective și curse" se evaluează după rezultatul introdus din buton și pot recalibra ritmurile. Importul Garmin (Setări → Istoric Garmin CSV) rămâne local, în browser, și nu intră în repo.
